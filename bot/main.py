@@ -1,5 +1,5 @@
 import asyncio
-from bot.client import client
+from bot.client import bot, dp
 from handlers import register_handlers
 from log import get_logger
 
@@ -9,19 +9,19 @@ logger = get_logger(__name__)
 
 async def main():
     try:
-        await client.start()
-        logger.info(f"Client started as {(await client.get_me()).username}")
+        bot_info = await bot.get_me()
+        logger.info(f"Bot started as {bot_info.username}")
 
-        register_handlers(client)
+        register_handlers(dp)
         logger.info("Handlers registered")
 
-        await client.run_until_disconnected()
+        await dp.start_polling(bot, skip_updates=True)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
     finally:
-        await client.disconnect()
+        await bot.session.close()
 
 
 if __name__ == "__main__":

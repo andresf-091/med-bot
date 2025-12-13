@@ -1,27 +1,31 @@
 from abc import ABC, abstractmethod
-from telethon import events
-from typing import Optional
+from aiogram import Router
+from aiogram.enums import ParseMode
 
 
 class BaseHandler(ABC):
+    DEFAULT_SEND_PARAMS: dict = {
+        "protect_content": True,
+        "parse_mode": ParseMode.MARKDOWN_V2,
+        "link_preview": False,
+    }
 
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, router: Router):
+        self.router = router
 
     @abstractmethod
-    async def handle(self, event):
+    async def handle(self, message):
         pass
 
     def register(self):
-        @self.client.on(self.get_event_type())
-        async def wrapper(event):
-            if await self.filter(event):
-                await self.handle(event)
+        self.router.message.register(self._wrapper, self.get_filter())
 
-        return wrapper
+    async def _wrapper(self, message):
+        if await self.filter(message):
+            await self.handle(message)
 
-    def get_event_type(self):
-        return events.NewMessage
+    def get_filter(self):
+        return None
 
-    async def filter(self, event) -> bool:
+    async def filter(self, message) -> bool:
         return True
