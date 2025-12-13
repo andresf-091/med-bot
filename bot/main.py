@@ -16,7 +16,6 @@ async def main():
         logger.info("Handlers registered")
 
         await client.run_until_disconnected()
-
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
@@ -24,5 +23,6 @@ async def main():
     finally:
         await client.disconnect()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(main())
