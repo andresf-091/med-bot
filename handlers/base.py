@@ -12,6 +12,7 @@ class BaseHandler(ABC):
 
     def __init__(self, router: Router):
         self.router = router
+        self._route = self.__class__.__name__.lower()
 
     @abstractmethod
     async def handle(self, message):
