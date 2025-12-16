@@ -10,6 +10,10 @@ logger = get_logger(__name__)
 
 class StartCommand(BaseHandler):
 
+    def __init__(self, router):
+        super().__init__(router)
+        self.handler_type = "message"
+
     def get_filter(self):
         return F.text == "/start"
 
@@ -17,7 +21,7 @@ class StartCommand(BaseHandler):
         user = message.from_user
         username = user.username or user.first_name
 
-        logger.info(f"{username} started bot")
+        logger.info(f"Start command: {username}")
 
         buttons = text_manager.get("commands.start.buttons")
         keyboard = inline_kb(buttons, self._route)
