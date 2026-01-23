@@ -1,7 +1,7 @@
 from aiogram import F
 from aiogram.types import CallbackQuery
-from bot.text import text_manager
 from handlers.base import BaseHandler
+from services.text import text_service
 from services.context import context_service
 from utils.keyboards import inline_kb
 from log import get_logger
@@ -21,9 +21,9 @@ class ExamInstructionEvent(BaseHandler):
 
         logger.info(f"Exam instruction for theme {theme}: {username}")
 
-        buttons = text_manager.get("events.exam_instruction.buttons")
+        buttons = text_service.get("events.exam_instruction.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_manager.get("events.exam_instruction.text")
+        text = text_service.get("events.exam_instruction.text")
 
         await callback.answer()
         await callback.message.edit_text(
@@ -45,9 +45,9 @@ class ExamPaginationEvent(BaseHandler):
 
         logger.info(f"Exam for theme {theme}: {username}")
 
-        buttons = text_manager.get("events.exam_pagination.buttons")
+        buttons = text_service.get("events.exam_pagination.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_manager.get("events.exam_pagination.text")
+        text = text_service.get("events.exam_pagination.text")
 
         await callback.answer()
         await callback.message.edit_text(

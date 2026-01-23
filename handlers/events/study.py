@@ -1,9 +1,9 @@
 from aiogram import F
 from aiogram.types import CallbackQuery
-from bot.text import text_manager
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
 from services.context import context_service
+from services.text import text_service
 from log import get_logger
 
 logger = get_logger(__name__)
@@ -22,9 +22,9 @@ class StudyThemesEvent(BaseHandler):
 
         logger.info(f"Study themes: {username}")
 
-        buttons = text_manager.get("events.study_themes.buttons")
+        buttons = text_service.get("events.study_themes.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_manager.get("events.study_themes.text", username=username)
+        text = text_service.get("events.study_themes.text", username=username)
 
         await callback.answer()
         await callback.message.edit_text(
@@ -37,7 +37,7 @@ class StudyThemesEvent(BaseHandler):
 class StudyThemeEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["studythemes_0_0", "theoryvariants_2_0"])
+        return F.data.in_(["studythemes_0_0", "studythemes_1_0", "theoryvariants_2_0"])
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -50,9 +50,9 @@ class StudyThemeEvent(BaseHandler):
 
         logger.info(f"Study theme {theme}: {username}")
 
-        buttons = text_manager.get("events.study_theme.buttons")
+        buttons = text_service.get("events.study_theme.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_manager.get("events.study_theme.text")
+        text = text_service.get("events.study_theme.text")
 
         await callback.answer()
         await callback.message.edit_text(

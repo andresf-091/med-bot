@@ -7,10 +7,10 @@ from database.enum import ContentType
 class ItemService:
     def __init__(self, session: Session):
         self.session = session
-    
+
     def get_by_id(self, item_id):
         return self.session.query(Item).filter(Item.id == item_id).first()
-    
+
     def get_by_theme(self, theme_id, content_type, only_relevant=True):
         query = self.session.query(Item).filter(
             Item.theme_id == theme_id,
@@ -19,43 +19,20 @@ class ItemService:
         if only_relevant:
             query = query.filter(Item.relevant == True)
         return query.order_by(Item.order).all()
-    
-    def get_theory_pages(self, theme_id, variant=None, only_relevant=True):
-        query = self.session.query(Item).filter(
-            Item.theme_id == theme_id,
-            Item.type == ContentType.THEORY,
-        )
-        if variant:
-            query = query.filter(cast(Item.other['variant'], String) == variant)
-        if only_relevant:
-            query = query.filter(Item.relevant == True)
-        return query.order_by(Item.order).all()
-    
-    def get_exam_questions(self, theme_id, limit=None, difficulty=None, only_relevant=True):
-        query = self.session.query(Item).filter(
-            Item.theme_id == theme_id,
-            Item.type == ContentType.QUESTION,
-        )
-        if difficulty is not None:
-            query = query.filter(Item.difficulty == difficulty)
-        if only_relevant:
-            query = query.filter(Item.relevant == True)
-        query = query.order_by(Item.difficulty, Item.order)
-        if limit:
-            query = query.limit(limit)
-        return query.all()
-    
-    def get_tasks(self, theme_id, only_relevant=True):
-        query = self.session.query(Item).filter(
-            Item.theme_id == theme_id,
-            Item.type == ContentType.TASK,
-        )
-        if only_relevant:
-            query = query.filter(Item.relevant == True)
-        return query.order_by(Item.order).all()
-    
-    def create(self, theme_id, content_type, title=None, content=None, explanation=None, 
-               options=None, difficulty=1, other=None, order=0, relevant=True):
+
+    def create(
+        self,
+        theme_id,
+        content_type,
+        title=None,
+        content=None,
+        explanation=None,
+        options=None,
+        difficulty=1,
+        other=None,
+        order=0,
+        relevant=True,
+    ):
         item = Item(
             theme_id=theme_id,
             type=content_type,
@@ -72,7 +49,7 @@ class ItemService:
         self.session.commit()
         self.session.refresh(item)
         return item
-    
+
     def set_relevant(self, item_id, relevant):
         item = self.get_by_id(item_id)
         if not item:
@@ -81,4 +58,3 @@ class ItemService:
         self.session.commit()
         self.session.refresh(item)
         return item
-

@@ -5,6 +5,7 @@ class ContentType(PyEnum):
     THEORY = "theory"
     QUESTION = "question"
     TASK = "task"
+    SLIDE = "slide"
 
 
 class UserRole(PyEnum):

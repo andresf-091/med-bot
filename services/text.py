@@ -1,16 +1,17 @@
 import json
 import os
+import copy
 from log import get_logger
 
 logger = get_logger(__name__)
 
 
-class TextManager:
+class TextService:
 
     def __init__(self, locale: str = "ru"):
         self.locale = locale
         self._text = self._load_text()
-        logger.info(f"TextManager initialized for locale: {self.locale}")
+        logger.info(f"TextService initialized for locale: {self.locale}")
 
     def _load_text(self) -> dict:
         path = os.path.join(
@@ -19,7 +20,7 @@ class TextManager:
         with open(path, "r", encoding="utf-8") as file:
             return json.load(file)
 
-    def get(self, key: str, **kwargs):
+    def get(self, key: str, copy_obj=False, **kwargs):
         keys = key.split(".")
         value = self._text
         for k in keys:
@@ -27,7 +28,7 @@ class TextManager:
                 value = value[k]
             if isinstance(value, str):
                 value = value.format(**kwargs)
-        return value
+        return copy.deepcopy(value) if copy_obj else value
 
 
-text_manager = TextManager(locale="ru")
+text_service = TextService(locale="ru")

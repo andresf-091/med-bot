@@ -1,6 +1,7 @@
 from aiogram import F
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from bot.text import text_manager
+from aiogram.types import Message
+from services.text import text_service
+from database import db, UserService
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
 from log import get_logger
@@ -23,9 +24,9 @@ class StartCommand(BaseHandler):
 
         logger.info(f"Start command: {username}")
 
-        buttons = text_manager.get("commands.start.buttons")
+        buttons = text_service.get("commands.start.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_manager.get("commands.start.text", username=username)
+        text = text_service.get("commands.start.text", username=username)
 
         await message.reply(
             text,
