@@ -9,17 +9,13 @@ class ImageService:
     def get(self, **kwargs):
         return self.session.query(Image).filter_by(**kwargs).order_by(Image.order).all()
 
-    def create(self, item_id, content, caption=None, order=0):
-        image = Image(item_id=item_id, content=content, caption=caption, order=order)
-        self.session.add(image)
-        self.session.commit()
-        self.session.refresh(image)
-        return image
-
-    def delete(self, image_id):
-        image = self.get(id=image_id)
-        if not image:
-            return False
-        self.session.delete(image)
-        self.session.commit()
-        return True
+    def update(self, image_id, **kwargs):
+        images = self.get(id=image_id)
+        if images:
+            image = images[0]
+            for key, value in kwargs.items():
+                setattr(image, key, value)
+            self.session.commit()
+            self.session.refresh(image)
+            return image
+        return None

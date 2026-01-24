@@ -103,7 +103,13 @@ class SlidePaginationEvent(BaseHandler):
 
         image = images[page]
         local_image_storage = LocalImageStorage()
-        image_path = local_image_storage.get_input_file(relative_path=image.content)
+
+        if image.file_id:
+            image_input = image.file_id
+        else:
+            image_input = local_image_storage.get_input_file(
+                relative_path=image.content
+            )
 
         description = image.caption if image.caption else slide.content
         text = text_service.get(
@@ -128,22 +134,34 @@ class SlidePaginationEvent(BaseHandler):
         )
 
         if callback.data.startswith("slideslist_"):
-            await callback.message.answer_photo(
-                photo=image_path,
+            msg = await callback.message.answer_photo(
+                photo=image_input,
                 caption=text,
                 **self.DEFAULT_SEND_PARAMS,
                 reply_markup=keyboard,
             )
             await callback.answer()
+
+            if not image.file_id and msg.photo:
+                file_id = msg.photo[-1].file_id
+                with db.session() as session:
+                    image_service = ImageService(session)
+                    image_service.update(image.id, file_id=file_id)
         else:
             if (page != current_page) or (current_page is None):
-                await callback.message.edit_media(
+                upd_msg = await callback.message.edit_media(
                     media=InputMediaPhoto(
-                        media=image_path, caption=text, **self.DEFAULT_SEND_PARAMS
+                        media=image_input, caption=text, **self.DEFAULT_SEND_PARAMS
                     ),
                     reply_markup=keyboard,
                 )
                 await callback.answer()
+
+                if not image.file_id and upd_msg.photo:
+                    file_id = upd_msg.photo[-1].file_id
+                    with db.session() as session:
+                        image_service = ImageService(session)
+                        image_service.update(image.id, file_id=file_id)
             else:
                 await callback.answer("Это первая/последняя страница")
 
