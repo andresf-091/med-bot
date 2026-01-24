@@ -10,8 +10,6 @@ except ValueError as e:
     print(f"Ошибка конфигурации: {e}")
     sys.exit(1)
 
-db.create_tables()
-
 if __name__ == "__main__":
     try:
         asyncio.run(main())

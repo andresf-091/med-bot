@@ -8,6 +8,7 @@ class Image(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(String(500), nullable=False)  # URL или путь к изображению
+    file_id = Column(String(500), nullable=True)
     caption = Column(Text, nullable=True)
     item_id = Column(
         Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True
