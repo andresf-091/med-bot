@@ -29,3 +29,12 @@ class StartMenuEvent(BaseHandler):
             **self.DEFAULT_SEND_PARAMS,
             reply_markup=keyboard,
         )
+
+
+class CheckEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data != "a"
+
+    async def handle(self, callback: CallbackQuery):
+        logger.info(f"Check event: {callback.data}")

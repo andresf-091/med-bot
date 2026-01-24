@@ -7,11 +7,8 @@ class UserService:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_tg_id(self, tg_id):
-        return self.session.query(User).filter(User.tg_id == tg_id).first()
-
-    def get_by_id(self, user_id):
-        return self.session.query(User).filter(User.id == user_id).first()
+    def get(self, **kwargs):
+        return self.session.query(User).filter_by(**kwargs).all()
 
     def create_or_get(
         self,
@@ -20,7 +17,7 @@ class UserService:
         subscription=UserSubscription.FREE,
         language=UserLanguage.RU,
     ):
-        user = self.get_by_tg_id(tg_id)
+        user = self.get(tg_id=tg_id)
         if user:
             return user
         user = User(
@@ -32,7 +29,7 @@ class UserService:
         return user
 
     def update_subscription(self, tg_id, subscription):
-        user = self.get_by_tg_id(tg_id)
+        user = self.get(tg_id=tg_id)
         if not user:
             return None
         user.subscription = subscription
@@ -41,7 +38,7 @@ class UserService:
         return user
 
     def update_language(self, tg_id, language):
-        user = self.get_by_tg_id(tg_id)
+        user = self.get(tg_id=tg_id)
         if not user:
             return None
         user.language = language
@@ -50,7 +47,7 @@ class UserService:
         return user
 
     def is_premium(self, tg_id):
-        user = self.get_by_tg_id(tg_id)
+        user = self.get(tg_id=tg_id)
         if not user:
             return False
         return user.subscription in (UserSubscription.PREMIUM, UserSubscription.TRIAL)

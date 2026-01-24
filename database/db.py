@@ -27,7 +27,10 @@ class Database:
             echo=False,
         )
         self.SessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=self.engine
+            autocommit=False,
+            autoflush=False,
+            bind=self.engine,
+            expire_on_commit=False,
         )
         self._initialized = True
         logger.info("Database connection initialized")

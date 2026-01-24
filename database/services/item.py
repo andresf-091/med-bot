@@ -8,17 +8,8 @@ class ItemService:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_id(self, item_id):
-        return self.session.query(Item).filter(Item.id == item_id).first()
-
-    def get_by_theme(self, theme_id, content_type, only_relevant=True):
-        query = self.session.query(Item).filter(
-            Item.theme_id == theme_id,
-            Item.type == content_type,
-        )
-        if only_relevant:
-            query = query.filter(Item.relevant == True)
-        return query.order_by(Item.order).all()
+    def get(self, **kwargs):
+        return self.session.query(Item).filter_by(**kwargs).order_by(Item.order).all()
 
     def create(
         self,
@@ -51,7 +42,7 @@ class ItemService:
         return item
 
     def set_relevant(self, item_id, relevant):
-        item = self.get_by_id(item_id)
+        item = self.get(id=item_id)
         if not item:
             return None
         item.relevant = relevant

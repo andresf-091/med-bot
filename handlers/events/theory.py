@@ -39,7 +39,7 @@ class TheoryPaginationEvent(BaseHandler):
 
     def get_filter(self):
         return (
-            F.data.startswith("theoryvariants_")
+            F.data.startswith("theoryvariants_") & (F.data != "theoryvariants_2_0")
             | F.data.startswith("theorypagination_0_")
             | F.data.startswith("theorypagination_1_0")
         )
@@ -64,7 +64,7 @@ class TheoryPaginationEvent(BaseHandler):
         if pages is None:
             with db.session() as session:
                 item_service = ItemService(session)
-                items = item_service.get_by_theme(theme_id, ContentType.THEORY)
+                items = item_service.get(theme_id=theme_id, type=ContentType.THEORY)
                 if not items:
                     await callback.answer("Теория не найдена")
                     return
@@ -89,19 +89,21 @@ class TheoryPaginationEvent(BaseHandler):
             theory=theory_text,
         )
 
-        buttons = text_service.get("events.theory_pagination.buttons", copy_obj=True)
-        if (page + 1) == total_pages:
-            buttons[0][0] = "✅ Конец"
-        elif page == 0:
-            buttons[1][0] = "🔄 Назад не получится"
-        keyboard = inline_kb(buttons, self._route)
+        buttons = text_service.get("events.theory_pagination.buttons")
+        is_end = (page + 1) == total_pages
+        is_start = page == 0
+        keyboard = inline_kb(
+            buttons,
+            self._route,
+            variants_map={(0, 0): int(is_end), (1, 0): int(is_start)},
+        )
 
         if (page != current_page) or (current_page is None):
-            await callback.answer()
             await callback.message.edit_text(
                 text,
                 **self.DEFAULT_SEND_PARAMS,
                 reply_markup=keyboard,
             )
+            await callback.answer()
         else:
             await callback.answer("Это первая/последняя страница")

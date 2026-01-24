@@ -4,6 +4,11 @@ from handlers.commands.start import StartCommand
 from handlers.events.start_menu import StartMenuEvent
 from handlers.events.study import StudyThemesEvent, StudyThemeEvent
 from handlers.events.theory import TheoryVariantsEvent, TheoryPaginationEvent
+from handlers.events.slides import (
+    SlidesListEvent,
+    SlidePaginationEvent,
+    SlidePaginationDeleteEvent,
+)
 from handlers.events.exam import ExamInstructionEvent, ExamPaginationEvent
 
 
@@ -22,5 +27,9 @@ def register_handlers(dp):
 
     ExamInstructionEvent(router).register()
     ExamPaginationEvent(router).register()
+
+    SlidesListEvent(router).register()
+    SlidePaginationEvent(router).register()
+    SlidePaginationDeleteEvent(router).register()
 
     dp.include_router(router)

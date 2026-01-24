@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 class ExamInstructionEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["studytheme_1_0", "examinstruction_1_0"])
+        return F.data.in_(["studytheme_2_0", "examinstruction_1_0"])
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
