@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from database.models.base import Base
-from database.models import User, Theme, Item, Image, UserFavoriteTheory, UserFavoriteExam, UserFavoriteTask
+from database.models import User, Theme, Item, Image, UserFavorite
 from bot.config import Config
 
 config = context.config

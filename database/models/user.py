@@ -15,15 +15,9 @@ class User(Base):
     )
     language = Column(Enum(UserLanguage), nullable=False, default=UserLanguage.RU)
 
-    # Relationships (many-to-many через таблицы связи)
-    favorite_theory = relationship(
-        "UserFavoriteTheory", back_populates="user", cascade="all, delete-orphan"
-    )
-    favorite_exam = relationship(
-        "UserFavoriteExam", back_populates="user", cascade="all, delete-orphan"
-    )
-    favorite_task = relationship(
-        "UserFavoriteTask", back_populates="user", cascade="all, delete-orphan"
+    # Relationships (many-to-many через таблицу связи)
+    favorites = relationship(
+        "UserFavorite", back_populates="user", cascade="all, delete-orphan"
     )
 
     __table_args__ = (UniqueConstraint("tg_id", name="uq_user_tg_id"),)

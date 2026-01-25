@@ -1,7 +1,7 @@
 from aiogram import F
 from aiogram.types import Message
 from services.text import text_service
-from database import db, UserService
+from database import db, UserService, UserRole
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
 from log import get_logger
@@ -21,6 +21,12 @@ class StartCommand(BaseHandler):
     async def handle(self, message: Message):
         user = message.from_user
         username = user.username or user.first_name
+
+        with db.session() as session:
+            user_service = UserService(session)
+            users = user_service.get(tg_id=user.id)
+            if not users:
+                user_service.create(tg_id=user.id)
 
         logger.info(f"Start command: {username}")
 

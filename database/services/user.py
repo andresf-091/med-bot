@@ -10,38 +10,19 @@ class UserService:
     def get(self, **kwargs):
         return self.session.query(User).filter_by(**kwargs).all()
 
-    def create_or_get(
-        self,
-        tg_id,
-        role=UserRole.USER,
-        subscription=UserSubscription.FREE,
-        language=UserLanguage.RU,
-    ):
+    def update(self, tg_id, **kwargs):
         user = self.get(tg_id=tg_id)
-        if user:
-            return user
-        user = User(
-            tg_id=tg_id, role=role, subscription=subscription, language=language
-        )
+        if not user:
+            return None
+        for key, value in kwargs.items():
+            setattr(user, key, value)
+        self.session.commit()
+        self.session.refresh(user)
+        return user
+
+    def create(self, tg_id, **kwargs):
+        user = User(tg_id=tg_id, **kwargs)
         self.session.add(user)
-        self.session.commit()
-        self.session.refresh(user)
-        return user
-
-    def update_subscription(self, tg_id, subscription):
-        user = self.get(tg_id=tg_id)
-        if not user:
-            return None
-        user.subscription = subscription
-        self.session.commit()
-        self.session.refresh(user)
-        return user
-
-    def update_language(self, tg_id, language):
-        user = self.get(tg_id=tg_id)
-        if not user:
-            return None
-        user.language = language
         self.session.commit()
         self.session.refresh(user)
         return user

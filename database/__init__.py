@@ -4,9 +4,7 @@ from database.models import (
     Theme,
     Item,
     Image,
-    UserFavoriteTheory,
-    UserFavoriteExam,
-    UserFavoriteTask,
+    UserFavorite,
 )
 from database.enum import (
     ContentType,
@@ -27,9 +25,7 @@ __all__ = [
     "Theme",
     "Item",
     "Image",
-    "UserFavoriteTheory",
-    "UserFavoriteExam",
-    "UserFavoriteTask",
+    "UserFavorite",
     "ContentType",
     "UserRole",
     "UserSubscription",

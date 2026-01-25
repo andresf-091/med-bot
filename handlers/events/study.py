@@ -21,9 +21,19 @@ class StudyThemesEvent(BaseHandler):
 
         context_service.clear(user.id)
 
+        with db.session() as session:
+            theme_service = ThemeService(session)
+            themes = theme_service.get()
+
+        if not themes:
+            await callback.answer("Темы не найдены")
+            return
+
         logger.info(f"Study themes: {username}")
 
-        buttons = text_service.get("events.study_themes.buttons")
+        buttons = text_service.get("events.study_themes.buttons", copy_obj=True)
+        for theme in themes:
+            buttons.append([theme.name])
         keyboard = inline_kb(buttons, self._route)
         text = text_service.get("events.study_themes.text", username=username)
 
@@ -40,12 +50,10 @@ class StudyThemeEvent(BaseHandler):
     def get_filter(self):
         return F.data.in_(
             [
-                "studythemes_0_0",
-                "studythemes_1_0",
                 "theoryvariants_2_0",
                 "slideslist_0_0",
             ]
-        )
+        ) | F.data.startswith("studythemes_") & (~F.data.endswith("_0_0"))
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -53,7 +61,7 @@ class StudyThemeEvent(BaseHandler):
 
         theme_id = context_service.get(user.id, "study_theme")
         if theme_id is None:
-            theme_id = int(callback.data.split("_")[1])
+            theme_id = int(callback.data.split("_")[1]) - 1
             context_service.set(user.id, "study_theme", theme_id)
 
         with db.session() as session:

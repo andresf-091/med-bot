@@ -41,15 +41,9 @@ class Item(Base):
         order_by="Image.order",
     )
 
-    # Many-to-many через таблицы связи
-    favorited_by_theory = relationship(
-        "UserFavoriteTheory", back_populates="item", cascade="all, delete-orphan"
-    )
-    favorited_by_exam = relationship(
-        "UserFavoriteExam", back_populates="item", cascade="all, delete-orphan"
-    )
-    favorited_by_task = relationship(
-        "UserFavoriteTask", back_populates="item", cascade="all, delete-orphan"
+    # Many-to-many через таблицу связи
+    favorited_by = relationship(
+        "UserFavorite", back_populates="item", cascade="all, delete-orphan"
     )
 
     __table_args__ = (

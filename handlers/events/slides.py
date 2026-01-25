@@ -57,7 +57,7 @@ class SlidePaginationEvent(BaseHandler):
     def get_filter(self):
         return F.data.startswith("slideslist_") & (
             F.data != "slideslist_0_0"
-        ) | F.data.startswith("slidepagination_") & (~F.data.endswith("_2_0")) & (
+        ) | F.data.startswith("slidepagination_") & (~F.data.endswith("_3_0")) & (
             ~F.data.endswith("_1_1")
         )
 
@@ -98,7 +98,10 @@ class SlidePaginationEvent(BaseHandler):
 
         slide = slides[0]
         total_pages = len(images)
-        page = min(page, total_pages - 1)
+        if callback.data.endswith("_2_0"):
+            page = total_pages - 1
+        else:
+            page = min(page, total_pages - 1)
         context_service.set(user.id, f"slide_page_{slide_order}", page)
 
         image = images[page]
@@ -169,7 +172,7 @@ class SlidePaginationEvent(BaseHandler):
 class SlidePaginationDeleteEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.startswith("slidepagination_") & F.data.endswith("_2_0")
+        return F.data.startswith("slidepagination_") & F.data.endswith("_3_0")
 
     async def handle(self, callback: CallbackQuery):
         slide_order = int(callback.data.split("_")[1])

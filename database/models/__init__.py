@@ -3,11 +3,7 @@ from database.models.user import User
 from database.models.theme import Theme
 from database.models.item import Item
 from database.models.image import Image
-from database.models.user_favorites import (
-    UserFavoriteTheory,
-    UserFavoriteExam,
-    UserFavoriteTask,
-)
+from database.models.user_favorites import UserFavorite
 
 __all__ = [
     "Base",
@@ -15,7 +11,5 @@ __all__ = [
     "Theme",
     "Item",
     "Image",
-    "UserFavoriteTheory",
-    "UserFavoriteExam",
-    "UserFavoriteTask",
+    "UserFavorite",
 ]
