@@ -8,6 +8,7 @@ from handlers.events.slides import (
     SlidesListEvent,
     SlidePaginationEvent,
     SlidePaginationDeleteEvent,
+    SlideFavoriteEvent,
 )
 from handlers.events.exam import ExamInstructionEvent, ExamPaginationEvent
 
@@ -31,5 +32,6 @@ def register_handlers(dp):
     SlidesListEvent(router).register()
     SlidePaginationEvent(router).register()
     SlidePaginationDeleteEvent(router).register()
+    SlideFavoriteEvent(router).register()
 
     dp.include_router(router)

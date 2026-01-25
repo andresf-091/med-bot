@@ -44,4 +44,4 @@ class CheckEvent(BaseHandler):
         return F.data != "a"
 
     async def handle(self, callback: CallbackQuery):
-        logger.info(f"Check event: {callback.data}")
+        logger.debug(f"Check event: {callback.data}")

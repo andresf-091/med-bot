@@ -5,7 +5,15 @@ from utils.keyboards import inline_kb
 from services.context import context_service
 from services.text import text_service
 from services.image_storage import LocalImageStorage
-from database import db, ItemService, ThemeService, ContentType, ImageService
+from database import (
+    UserService,
+    db,
+    ItemService,
+    ThemeService,
+    ContentType,
+    ImageService,
+    FavoriteService,
+)
 from log import get_logger
 
 logger = get_logger(__name__)
@@ -14,7 +22,7 @@ logger = get_logger(__name__)
 class SlidesListEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["studytheme_1_0", "slide_0_0"])
+        return F.data.in_(["studytheme_1_0"])
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -57,8 +65,8 @@ class SlidePaginationEvent(BaseHandler):
     def get_filter(self):
         return F.data.startswith("slideslist_") & (
             F.data != "slideslist_0_0"
-        ) | F.data.startswith("slidepagination_") & (~F.data.endswith("_3_0")) & (
-            ~F.data.endswith("_1_1")
+        ) | F.data.startswith("slidepagination_") & (
+            F.data.endswith("_0_0") | F.data.endswith("_1_0")
         )
 
     async def handle(self, callback: CallbackQuery):
@@ -80,14 +88,27 @@ class SlidePaginationEvent(BaseHandler):
             page = current_page + 1
 
         with db.session() as session:
-            item_service = ItemService(session)
-            slides = item_service.get(
-                theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
-            )
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)
+            if user_db:
+                user_db = user_db[0]
 
-            if slides:
-                image_service = ImageService(session)
-                images = image_service.get(item_id=slides[0].id)
+                item_service = ItemService(session)
+                slides = item_service.get(
+                    theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
+                )
+
+                if slides:
+                    image_service = ImageService(session)
+                    images = image_service.get(item_id=slides[0].id)
+
+                    if images:
+                        favorite_service = FavoriteService(session)
+                        is_favorite = favorite_service.is_favorite(
+                            user_id=user_db.id,
+                            item_id=slides[0].id,
+                            content_type=ContentType.SLIDE,
+                        )
 
         if not slides:
             await callback.answer("Препараты не найдены")
@@ -129,7 +150,11 @@ class SlidePaginationEvent(BaseHandler):
         keyboard = inline_kb(
             buttons,
             self._route + f"_{slide_order}",
-            variants_map={(0, 0): int(is_end), (1, 0): int(is_start)},
+            variants_map={
+                (0, 0): int(is_end),
+                (1, 0): int(is_start),
+                (1, 1): int(is_favorite),
+            },
         )
 
         logger.info(
@@ -167,6 +192,62 @@ class SlidePaginationEvent(BaseHandler):
                         image_service.update(image.id, file_id=file_id)
             else:
                 await callback.answer("Это первая/последняя страница")
+
+
+class SlideFavoriteEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data.startswith("slidepagination_") & F.data.endswith("_1_1")
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        username = user.username or user.first_name
+        theme_id = context_service.get(user.id, "study_theme")
+
+        slide_order = int(callback.data.split("_")[1])
+        logger.debug(f"Slide order: {slide_order}")
+        current_page = context_service.get(user.id, f"slide_page_{slide_order}", 0)
+
+        with db.session() as session:
+
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)
+
+            if user_db:
+                user_db = user_db[0]
+                item_service = ItemService(session)
+                slides = item_service.get(
+                    theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
+                )
+                slide = slides[0]
+                total_pages = len(slide.images)
+
+                favorite_service = FavoriteService(session)
+                is_favorite = favorite_service.toggle(
+                    user_id=user_db.id, item_id=slide.id, content_type=ContentType.SLIDE
+                )
+
+        logger.info(
+            f"Slide favorite toggled: {is_favorite} for slide {slide.title}: {username}"
+        )
+
+        buttons = text_service.get("events.slide_pagination.buttons")
+        is_end = (current_page + 1) == total_pages
+        is_start = current_page == 0
+        keyboard = inline_kb(
+            buttons,
+            f"slidepagination_{slide_order}",
+            variants_map={
+                (0, 0): int(is_end),
+                (1, 0): int(is_start),
+                (1, 1): int(is_favorite),
+            },
+        )
+        await callback.message.edit_reply_markup(reply_markup=keyboard)
+        if is_favorite:
+            await callback.answer("Препарат добавлен в избранное")
+        else:
+            await callback.answer("Препарат удален из избранного")
 
 
 class SlidePaginationDeleteEvent(BaseHandler):

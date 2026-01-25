@@ -20,7 +20,6 @@ class FavoriteService:
         )
 
     def add(self, user_id, content_type: ContentType, item_id: int):
-        # Проверка существования записи
         existing = (
             self.session.query(UserFavorite)
             .filter(
@@ -33,7 +32,6 @@ class FavoriteService:
         if existing:
             return True
 
-        # Проверка существования item
         item = self.session.query(Item).filter(Item.id == item_id).first()
         if not item:
             return False
@@ -61,6 +59,14 @@ class FavoriteService:
         self.session.delete(favorite)
         self.session.commit()
         return True
+
+    def toggle(self, user_id, content_type: ContentType, item_id: int):
+        if self.is_favorite(user_id, content_type, item_id):
+            self.remove(user_id, content_type, item_id)
+            return False
+        else:
+            self.add(user_id, content_type, item_id)
+            return True
 
     def is_favorite(self, user_id, content_type: ContentType, item_id: int):
         return (
