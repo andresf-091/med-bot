@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Enum, ForeignKey, UniqueConstraint, BigInteger
 from sqlalchemy.orm import relationship
 from database.models.base import Base
 from database.enum import UserRole, UserSubscription, UserLanguage
@@ -8,7 +8,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tg_id = Column(Integer, unique=True, nullable=False, index=True)  # Telegram user ID
+    tg_id = Column(
+        BigInteger, unique=True, nullable=False, index=True
+    )  # Telegram user ID
     role = Column(Enum(UserRole), nullable=False, default=UserRole.USER)
     subscription = Column(
         Enum(UserSubscription), nullable=False, default=UserSubscription.FREE

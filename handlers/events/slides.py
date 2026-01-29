@@ -66,7 +66,7 @@ class SlidePaginationEvent(BaseHandler):
         return F.data.startswith("slideslist_") & (
             F.data != "slideslist_0_0"
         ) | F.data.startswith("slidepagination_") & (
-            F.data.endswith("_0_0") | F.data.endswith("_1_0")
+            F.data.endswith("_0_0") | F.data.endswith("_1_0") | F.data.endswith("_2_0")
         )
 
     async def handle(self, callback: CallbackQuery):
