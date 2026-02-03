@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from database.models.base import Base
-from database.models import User, Theme, Item, Image, UserFavorite
+from database.models import User, Theme, ThemeItem, Item, Image, UserFavorite
 from bot.config import Config
 
 config = context.config
@@ -18,8 +18,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+
 def get_url():
     return Config.DATABASE_URL
+
 
 def run_migrations_offline() -> None:
     url = get_url()
@@ -44,9 +46,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

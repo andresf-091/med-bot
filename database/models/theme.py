@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, UniqueConstraint
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.associationproxy import association_proxy
 from database.models.base import Base
 
 
@@ -11,7 +12,13 @@ class Theme(Base):
     order = Column(Integer, nullable=False, default=0)
 
     # Relationships
-    items = relationship("Item", back_populates="theme", cascade="all, delete-orphan")
+    theme_items = relationship(
+        "ThemeItem",
+        back_populates="theme",
+        cascade="all, delete-orphan",
+        order_by="ThemeItem.order",
+    )
+    items = association_proxy("theme_items", "item")
 
     def __repr__(self):
         return f"<Theme(id={self.id}, name='{self.name}', order={self.order})>"

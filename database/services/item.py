@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import cast, String
 from database.models.item import Item
+from database.models.theme_item import ThemeItem
 from database.enum import ContentType
 
 
@@ -9,4 +9,12 @@ class ItemService:
         self.session = session
 
     def get(self, **kwargs):
-        return self.session.query(Item).filter_by(**kwargs).order_by(Item.order).all()
+        theme_id = kwargs.pop("theme_id", None)
+        order = kwargs.pop("order", None)
+        q = self.session.query(Item).filter_by(**kwargs)
+        if theme_id is not None:
+            q = q.join(ThemeItem).filter(ThemeItem.theme_id == theme_id)
+            if order is not None:
+                q = q.filter(ThemeItem.order == order)
+            q = q.order_by(ThemeItem.order)
+        return q.all()
