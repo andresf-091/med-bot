@@ -47,10 +47,14 @@ class SlidesListEvent(BaseHandler):
         logger.info(f"Slides list for theme {theme_id}: {username}")
 
         buttons = text_service.get("events.slides_list.buttons", copy_obj=True)
-        for slide_title in slide_titles:
+        slides_list = ""
+        for i, slide_title in enumerate(slide_titles):
             buttons.append([slide_title.replace("\\", "")])
+            slides_list += f"{i + 1}\\. {slide_title}\n"
         keyboard = inline_kb(buttons, self._route)
-        text = text_service.get("events.slides_list.text", theme=theme_name)
+        text = text_service.get(
+            "events.slides_list.text", theme=theme_name, slides_list=slides_list
+        )
 
         await callback.answer()
         await callback.message.edit_text(
