@@ -15,17 +15,19 @@ logger = get_logger(__name__)
 class TheoryVariantsEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["studytheme_0_0", "theorypagination_2_0"])
+        return (F.data.startswith("studytheme_") & F.data.endswith("_0_0")) | (
+            F.data.startswith("theorypagination_") & F.data.endswith("_2_0")
+        )
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme = context_service.get(user.id, "study_theme")
+        theme_id = int(callback.data.split("_")[1])
 
-        logger.info(f"Theory variants for theme {theme}: {username}")
+        logger.info(f"Theory variants for theme {theme_id}: {username}")
 
         buttons = text_service.get("events.theory_variants.buttons")
-        keyboard = inline_kb(buttons, self._route)
+        keyboard = inline_kb(buttons, f"theoryvariants_{theme_id}")
         text = text_service.get("events.theory_variants.text")
 
         await callback.answer()
@@ -52,23 +54,27 @@ class TheoryVariantsEvent(BaseHandler):
 class TheoryPaginationEvent(BaseHandler):
 
     def get_filter(self):
-        return (
-            F.data.startswith("theoryvariants_") & (F.data != "theoryvariants_2_0")
-            | F.data.startswith("theorypagination_0_")
-            | F.data.startswith("theorypagination_1_0")
+        cond_1 = F.data.startswith("theoryvariants_") & ~F.data.endswith("_2_0")
+        cond_2 = F.data.startswith("theorypagination_")
+        cond_3 = (
+            F.data.endswith("_0_0") | F.data.endswith("_0_1") | F.data.endswith("_1_0")
         )
+        return cond_1 | (cond_2 & cond_3)
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
 
         current_page = context_service.get(user.id, "theory_page", None)
 
         if callback.data.startswith("theoryvariants_"):
             page = 0
             context_service.set(user.id, "theory_page", None)
-        elif callback.data.startswith("theorypagination_1_0"):
+        elif callback.data.endswith("_1_0") and callback.data.startswith(
+            "theorypagination_"
+        ):
             page = max(0, current_page - 1)
         else:
             page = current_page + 1
@@ -124,7 +130,7 @@ class TheoryPaginationEvent(BaseHandler):
         is_start = page == 0
         keyboard = inline_kb(
             buttons,
-            self._route,
+            f"theorypagination_{theme_id}",
             variants_map={(0, 0): int(is_end), (1, 0): int(is_start)},
         )
 

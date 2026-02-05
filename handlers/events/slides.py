@@ -2,7 +2,6 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InputMediaPhoto
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
-from services.context import context_service
 from services.text import text_service
 from services.image_storage import LocalImageStorage
 from database import (
@@ -22,12 +21,12 @@ logger = get_logger(__name__)
 class SlidesListEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["studytheme_1_0"])
+        return F.data.startswith("studytheme_") & F.data.endswith("_1_0")
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
+        theme_id = int(callback.data.split("_")[1])
 
         with db.session() as session:
             theme_service = ThemeService(session)
@@ -53,7 +52,7 @@ class SlidesListEvent(BaseHandler):
         for i, slide_title in enumerate(slide_titles):
             buttons.append([slide_title.replace("\\", "")])
             slides_list += f"{i + 1}\\. {slide_title}\n"
-        keyboard = inline_kb(buttons, self._route)
+        keyboard = inline_kb(buttons, f"slideslist_{theme_id}")
         text = text_service.get(
             "events.slides_list.text", theme=theme_name, slides_list=slides_list
         )
@@ -70,7 +69,7 @@ class SlidePaginationEvent(BaseHandler):
 
     def get_filter(self):
         cond_1 = F.data.startswith("slideslist_")
-        cond_2 = F.data != "slideslist_0_0"
+        cond_2 = ~(F.data.startswith("slideslist_") & F.data.endswith("_0_0"))
         cond_3 = F.data.startswith("slidepagination_")
         cond_4 = (
             F.data.endswith("_0_0") | F.data.endswith("_1_0") | F.data.endswith("_2_0")
@@ -80,16 +79,15 @@ class SlidePaginationEvent(BaseHandler):
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
-        slide_order = int(callback.data.split("_")[1]) - int(
-            callback.data.startswith("slideslist_")
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
+        slide_order = int(parts[2]) - int(callback.data.startswith("slideslist_"))
+        current_page = (
+            int(parts[3]) if callback.data.startswith("slidepagination_") else 0
         )
-
-        current_page = context_service.get(user.id, f"slide_page_{slide_order}", 0)
 
         if callback.data.startswith("slideslist_"):
             page = 0
-            context_service.clear_key(user.id, f"slide_page_{slide_order}")
         elif callback.data.endswith("_1_0"):
             page = max(0, current_page - 1)
         else:
@@ -136,7 +134,6 @@ class SlidePaginationEvent(BaseHandler):
             page = total_pages - 1
         else:
             page = min(page, total_pages - 1)
-        context_service.set(user.id, f"slide_page_{slide_order}", page)
 
         image = images[page]
         local_image_storage = LocalImageStorage()
@@ -162,7 +159,7 @@ class SlidePaginationEvent(BaseHandler):
         is_start = page == 0
         keyboard = inline_kb(
             buttons,
-            self._route + f"_{slide_order}",
+            f"slidepagination_{theme_id}_{slide_order}_{page}",
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
@@ -189,7 +186,7 @@ class SlidePaginationEvent(BaseHandler):
                     image_service = ImageService(session)
                     image_service.update(image.id, file_id=file_id)
         else:
-            if (page != current_page) or (current_page is None):
+            if page != current_page:
                 upd_msg = await callback.message.edit_media(
                     media=InputMediaPhoto(
                         media=image_input, caption=text, **self.DEFAULT_SEND_PARAMS
@@ -215,11 +212,10 @@ class SlideFavoriteEvent(BaseHandler):
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
-
-        slide_order = int(callback.data.split("_")[1])
-        logger.debug(f"Slide order: {slide_order}")
-        current_page = context_service.get(user.id, f"slide_page_{slide_order}", 0)
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
+        slide_order = int(parts[2])
+        current_page = int(parts[3])
 
         with db.session() as session:
             user_service = UserService(session)
@@ -231,6 +227,9 @@ class SlideFavoriteEvent(BaseHandler):
                     theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
                 )
                 if slides:
+                    slide = slides[0]
+                    total_pages = len(slide.images)
+
                     favorite_service = FavoriteService(session)
                     is_favorite = favorite_service.toggle(
                         user_id=users_db[0].id,
@@ -245,9 +244,6 @@ class SlideFavoriteEvent(BaseHandler):
             await callback.answer("Препараты не найдены")
             return
 
-        slide = slides[0]
-        total_pages = len(slide.images)
-
         logger.info(
             f"Slide favorite toggled: {is_favorite} for slide {slide.title}: {username}"
         )
@@ -257,7 +253,7 @@ class SlideFavoriteEvent(BaseHandler):
         is_start = current_page == 0
         keyboard = inline_kb(
             buttons,
-            f"slidepagination_{slide_order}",
+            f"slidepagination_{theme_id}_{slide_order}_{current_page}",
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
@@ -277,7 +273,5 @@ class SlidePaginationDeleteEvent(BaseHandler):
         return F.data.startswith("slidepagination_") & F.data.endswith("_3_0")
 
     async def handle(self, callback: CallbackQuery):
-        slide_order = int(callback.data.split("_")[1])
-        context_service.clear_key(callback.from_user.id, f"slide_page_{slide_order}")
         await callback.answer()
         await callback.message.delete()

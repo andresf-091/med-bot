@@ -1,5 +1,5 @@
 from aiogram import F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from handlers.base import BaseHandler
 from database import db, ThemeService
 from utils.keyboards import inline_kb
@@ -13,7 +13,9 @@ logger = get_logger(__name__)
 class StudyThemesEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["start_0_0", "studytheme_4_0"])
+        return F.data.in_(["start_0_0", "studytheme_4_0"]) | (
+            F.data.startswith("studytheme_") & F.data.endswith("_4_0")
+        )
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -32,9 +34,16 @@ class StudyThemesEvent(BaseHandler):
         logger.info(f"Study themes: {username}")
 
         buttons = text_service.get("events.study_themes.buttons", copy_obj=True)
-        for theme in themes:
-            buttons.append([theme.name])
-        keyboard = inline_kb(buttons, self._route)
+        first_row = inline_kb([buttons[0]], self._route).inline_keyboard[0]
+        theme_rows = [
+            [
+                InlineKeyboardButton(
+                    text=t.name, callback_data=f"studythemes_{t.id}_{i+1}_0"
+                )
+            ]
+            for i, t in enumerate(themes)
+        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[first_row] + theme_rows)
         text = text_service.get("events.study_themes.text", username=username)
 
         await callback.answer()
@@ -48,13 +57,10 @@ class StudyThemesEvent(BaseHandler):
 class StudyThemeEvent(BaseHandler):
 
     def get_filter(self):
-        cond_1 = F.data.in_(
-            [
-                "theoryvariants_2_0",
-                "slideslist_0_0",
-            ]
+        cond_1 = (F.data.startswith("theoryvariants_") & F.data.endswith("_2_0")) | (
+            F.data.startswith("slideslist_") & F.data.endswith("_0_0")
         )
-        cond_2 = F.data.startswith("studythemes_") & (~F.data.endswith("_0_0"))
+        cond_2 = F.data.startswith("studythemes_") & (F.data != "studythemes_0_0")
         cond_3 = F.data.startswith("taskpagination_") & F.data.endswith("_3_0")
         return cond_1 | cond_2 | cond_3
 
@@ -62,22 +68,20 @@ class StudyThemeEvent(BaseHandler):
         user = callback.from_user
         username = user.username or user.first_name
 
-        theme_id = context_service.get(user.id, "study_theme")
-        if theme_id is None:
-            theme_id = int(callback.data.split("_")[1]) - 1
-            context_service.set(user.id, "study_theme", theme_id)
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
 
         with db.session() as session:
             theme_service = ThemeService(session)
-            theme = theme_service.get(id=theme_id)
-            if not theme:
+            themes = theme_service.get(id=theme_id)
+            if not themes:
                 await callback.answer("Тема не найдена")
                 return
 
         logger.info(f"Study theme {theme_id}: {username}")
 
         buttons = text_service.get("events.study_theme.buttons")
-        keyboard = inline_kb(buttons, self._route)
+        keyboard = inline_kb(buttons, f"studytheme_{theme_id}")
         text = text_service.get("events.study_theme.text")
 
         await callback.answer()

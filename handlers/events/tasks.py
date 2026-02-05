@@ -2,7 +2,6 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InputMediaPhoto
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
-from services.context import context_service
 from services.text import text_service
 from services.image_storage import LocalImageStorage
 from database import (
@@ -22,30 +21,30 @@ logger = get_logger(__name__)
 class TaskPaginationEvent(BaseHandler):
 
     def get_filter(self):
-        cond_1 = F.data == "studytheme_3_0"
+        cond_1 = F.data.startswith("studytheme_") & F.data.endswith("_3_0")
         cond_2 = F.data.startswith("taskpagination_")
         cond_3 = F.data.endswith("_1_0_0") | F.data.endswith("_2_0_0")
         cond_4 = F.data.endswith("_1_0_1") | F.data.endswith("_2_0_1")
         return cond_1 | (cond_2 & (cond_3 | cond_4))
 
     async def handle(self, callback: CallbackQuery):
-        if callback.data.endswith("_1_0_1") | callback.data.endswith("_2_0_1"):
+        if callback.data.endswith("_1_0_1") or callback.data.endswith("_2_0_1"):
             await callback.answer("Это первая/последняя страница")
             return
 
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
 
-        current_page = int(callback.data.split("_")[1])
-
-        if callback.data == "studytheme_3_0":
-            current_page = None
+        if callback.data.startswith("studytheme_"):
             page = 0
-        elif callback.data.endswith("_2_0_0"):
-            page = max(0, current_page - 1)
         else:
-            page = current_page + 1
+            current_page = int(parts[2])
+            if callback.data.endswith("_2_0_0"):
+                page = max(0, current_page - 1)
+            else:
+                page = current_page + 1
 
         with db.session() as session:
             user_service = UserService(session)
@@ -84,7 +83,7 @@ class TaskPaginationEvent(BaseHandler):
         is_start = page == 0
         keyboard = inline_kb(
             buttons,
-            self._route + f"_{page}",
+            f"taskpagination_{theme_id}_{page}",
             variants_map={
                 (0, 0): 0,
                 (1, 0): int(is_end),
@@ -120,8 +119,9 @@ class TaskAnswerEvent(BaseHandler):
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
-        page = int(callback.data.split("_")[1])
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
+        page = int(parts[2])
 
         is_show = callback.data.endswith("_0_0_0")
 
@@ -162,7 +162,7 @@ class TaskAnswerEvent(BaseHandler):
         is_start = page == 0
         keyboard = inline_kb(
             buttons,
-            f"taskpagination_{page}",
+            f"taskpagination_{theme_id}_{page}",
             variants_map={
                 (0, 0): int(is_show),
                 (1, 0): int(is_end),
@@ -197,8 +197,9 @@ class TaskFavoriteEvent(BaseHandler):
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
-        theme_id = context_service.get(user.id, "study_theme")
-        page = int(callback.data.split("_")[1])
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
+        page = int(parts[2])
 
         with db.session() as session:
             user_service = UserService(session)
@@ -237,7 +238,7 @@ class TaskFavoriteEvent(BaseHandler):
         is_start = page == 0
         keyboard = inline_kb(
             buttons,
-            f"taskpagination_{page}",
+            f"taskpagination_{theme_id}_{page}",
             variants_map={
                 (0, 0): int(is_show),
                 (1, 0): int(is_end),
