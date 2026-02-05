@@ -31,18 +31,20 @@ class SlidesListEvent(BaseHandler):
 
         with db.session() as session:
             theme_service = ThemeService(session)
-            theme = theme_service.get(id=theme_id)
-            if not theme:
-                await callback.answer("Тема не найдена")
-                return
-            theme_name = theme[0].name
+            themes = theme_service.get(id=theme_id)
 
             item_service = ItemService(session)
             slides = item_service.get(theme_id=theme_id, type=ContentType.SLIDE)
-            if not slides:
-                await callback.answer("Препараты для этой темы не найдены")
-                return
-            slide_titles = [slide.title for slide in slides]
+
+        if not themes:
+            await callback.answer("Тема не найдена")
+            return
+        theme_name = themes[0].name
+
+        if not slides:
+            await callback.answer("Препараты для этой темы не найдены")
+            return
+        slide_titles = [slide.title for slide in slides]
 
         logger.info(f"Slides list for theme {theme_id}: {username}")
 
@@ -67,11 +69,13 @@ class SlidesListEvent(BaseHandler):
 class SlidePaginationEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.startswith("slideslist_") & (
-            F.data != "slideslist_0_0"
-        ) | F.data.startswith("slidepagination_") & (
+        cond_1 = F.data.startswith("slideslist_")
+        cond_2 = F.data != "slideslist_0_0"
+        cond_3 = F.data.startswith("slidepagination_")
+        cond_4 = (
             F.data.endswith("_0_0") | F.data.endswith("_1_0") | F.data.endswith("_2_0")
         )
+        return (cond_1 & cond_2) | (cond_3 & cond_4)
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -93,9 +97,9 @@ class SlidePaginationEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            user_db = user_service.get(tg_id=user.id)
-            if user_db:
-                user_db = user_db[0]
+            users_db = user_service.get(tg_id=user.id)
+            if users_db:
+                user_db = users_db[0]
 
                 item_service = ItemService(session)
                 slides = item_service.get(
@@ -114,6 +118,9 @@ class SlidePaginationEvent(BaseHandler):
                             content_type=ContentType.SLIDE,
                         )
 
+        if not users_db:
+            await callback.answer("Пользователь не найден")
+            return
         if not slides:
             await callback.answer("Препараты не найдены")
             return
@@ -123,7 +130,9 @@ class SlidePaginationEvent(BaseHandler):
 
         slide = slides[0]
         total_pages = len(images)
-        if callback.data.endswith("_2_0"):
+        if callback.data.startswith("slidepagination_") and callback.data.endswith(
+            "_2_0"
+        ):
             page = total_pages - 1
         else:
             page = min(page, total_pages - 1)
@@ -213,23 +222,31 @@ class SlideFavoriteEvent(BaseHandler):
         current_page = context_service.get(user.id, f"slide_page_{slide_order}", 0)
 
         with db.session() as session:
-
             user_service = UserService(session)
-            user_db = user_service.get(tg_id=user.id)
+            users_db = user_service.get(tg_id=user.id)
 
-            if user_db:
-                user_db = user_db[0]
+            if users_db:
                 item_service = ItemService(session)
                 slides = item_service.get(
                     theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
                 )
-                slide = slides[0]
-                total_pages = len(slide.images)
+                if slides:
+                    favorite_service = FavoriteService(session)
+                    is_favorite = favorite_service.toggle(
+                        user_id=users_db[0].id,
+                        item_id=slides[0].id,
+                        content_type=ContentType.SLIDE,
+                    )
 
-                favorite_service = FavoriteService(session)
-                is_favorite = favorite_service.toggle(
-                    user_id=user_db.id, item_id=slide.id, content_type=ContentType.SLIDE
-                )
+        if not users_db:
+            await callback.answer("Пользователь не найден")
+            return
+        if not slides:
+            await callback.answer("Препараты не найдены")
+            return
+
+        slide = slides[0]
+        total_pages = len(slide.images)
 
         logger.info(
             f"Slide favorite toggled: {is_favorite} for slide {slide.title}: {username}"

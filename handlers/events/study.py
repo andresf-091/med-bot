@@ -48,12 +48,15 @@ class StudyThemesEvent(BaseHandler):
 class StudyThemeEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(
+        cond_1 = F.data.in_(
             [
                 "theoryvariants_2_0",
                 "slideslist_0_0",
             ]
-        ) | F.data.startswith("studythemes_") & (~F.data.endswith("_0_0"))
+        )
+        cond_2 = F.data.startswith("studythemes_") & (~F.data.endswith("_0_0"))
+        cond_3 = F.data.startswith("taskpagination_") & F.data.endswith("_3_0")
+        return cond_1 | cond_2 | cond_3
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user

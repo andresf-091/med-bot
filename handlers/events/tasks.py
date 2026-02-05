@@ -1,0 +1,255 @@
+from aiogram import F
+from aiogram.types import CallbackQuery, InputMediaPhoto
+from handlers.base import BaseHandler
+from utils.keyboards import inline_kb
+from services.context import context_service
+from services.text import text_service
+from services.image_storage import LocalImageStorage
+from database import (
+    UserService,
+    db,
+    ItemService,
+    ThemeService,
+    ContentType,
+    ImageService,
+    FavoriteService,
+)
+from log import get_logger
+
+logger = get_logger(__name__)
+
+
+class TaskPaginationEvent(BaseHandler):
+
+    def get_filter(self):
+        cond_1 = F.data == "studytheme_3_0"
+        cond_2 = F.data.startswith("taskpagination_")
+        cond_3 = F.data.endswith("_1_0_0") | F.data.endswith("_2_0_0")
+        cond_4 = F.data.endswith("_1_0_1") | F.data.endswith("_2_0_1")
+        return cond_1 | (cond_2 & (cond_3 | cond_4))
+
+    async def handle(self, callback: CallbackQuery):
+        if callback.data.endswith("_1_0_1") | callback.data.endswith("_2_0_1"):
+            await callback.answer("Это первая/последняя страница")
+            return
+
+        user = callback.from_user
+        username = user.username or user.first_name
+        theme_id = context_service.get(user.id, "study_theme")
+
+        current_page = int(callback.data.split("_")[1])
+
+        if callback.data == "studytheme_3_0":
+            current_page = None
+            page = 0
+        elif callback.data.endswith("_2_0_0"):
+            page = max(0, current_page - 1)
+        else:
+            page = current_page + 1
+
+        with db.session() as session:
+            user_service = UserService(session)
+            users_db = user_service.get(tg_id=user.id)
+            if users_db:
+                user_db = users_db[0]
+
+                item_service = ItemService(session)
+                tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
+                total_pages = len(tasks)
+                page = min(total_pages - 1, page)
+
+                if tasks:
+                    favorite_service = FavoriteService(session)
+                    is_favorite = favorite_service.is_favorite(
+                        user_id=user_db.id,
+                        item_id=tasks[page].id,
+                        content_type=ContentType.TASK,
+                    )
+
+        if not users_db:
+            await callback.answer("Пользователь не найден")
+            return
+        if not tasks:
+            await callback.answer("Задач по этому теме не найдено")
+            return
+
+        task = tasks[page]
+
+        logger.info(
+            f"Task pagination: {page + 1} / {total_pages} for theme {theme_id}: {username}"
+        )
+
+        buttons = text_service.get("events.task_pagination.buttons")
+        is_end = (page + 1) == total_pages
+        is_start = page == 0
+        keyboard = inline_kb(
+            buttons,
+            self._route + f"_{page}",
+            variants_map={
+                (0, 0): 0,
+                (1, 0): int(is_end),
+                (2, 0): int(is_start),
+                (2, 1): int(is_favorite),
+            },
+            include_variant_in_callback=True,
+        )
+        text = text_service.get(
+            "events.task_pagination.text",
+            page=page + 1,
+            total_pages=total_pages,
+            title=(task.title + "\n\n") if not task.content else "",
+            task=task.content if task.content else "",
+            answer="",
+        )
+
+        await callback.answer()
+        await callback.message.edit_text(
+            text,
+            **self.DEFAULT_SEND_PARAMS,
+            reply_markup=keyboard,
+        )
+
+
+class TaskAnswerEvent(BaseHandler):
+    def get_filter(self):
+        cond_1 = F.data.startswith("taskpagination_")
+        cond_2 = F.data.endswith("_0_0_0")
+        cond_3 = F.data.endswith("_0_0_1")
+        return cond_1 & (cond_2 | cond_3)
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        username = user.username or user.first_name
+        theme_id = context_service.get(user.id, "study_theme")
+        page = int(callback.data.split("_")[1])
+
+        is_show = callback.data.endswith("_0_0_0")
+
+        with db.session() as session:
+            user_service = UserService(session)
+            users_db = user_service.get(tg_id=user.id)
+            if users_db:
+                user_db = users_db[0]
+
+                item_service = ItemService(session)
+                tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
+                if tasks:
+                    favorite_service = FavoriteService(session)
+                    is_favorite = favorite_service.is_favorite(
+                        user_id=user_db.id,
+                        item_id=tasks[page].id,
+                        content_type=ContentType.TASK,
+                    )
+
+        if not tasks:
+            await callback.answer("Задач по этому теме не найдено")
+            return
+
+        total_pages = len(tasks)
+        task = tasks[page]
+
+        logger.debug(
+            f"Task show/hide answer: {is_show} for theme {theme_id} task {page + 1}: {username}"
+        )
+
+        if is_show:
+            answer = task.explanation
+        else:
+            answer = ""
+
+        buttons = text_service.get("events.task_pagination.buttons")
+        is_end = (page + 1) == total_pages
+        is_start = page == 0
+        keyboard = inline_kb(
+            buttons,
+            f"taskpagination_{page}",
+            variants_map={
+                (0, 0): int(is_show),
+                (1, 0): int(is_end),
+                (2, 0): int(is_start),
+                (2, 1): int(is_favorite),
+            },
+            include_variant_in_callback=True,
+        )
+        text = text_service.get(
+            "events.task_pagination.text",
+            page=page + 1,
+            total_pages=total_pages,
+            title=(task.title + "\n\n") if not task.content else "",
+            task=task.content if task.content else "",
+            answer=answer,
+        )
+
+        await callback.answer()
+        await callback.message.edit_text(
+            text,
+            **self.DEFAULT_SEND_PARAMS,
+            reply_markup=keyboard,
+        )
+
+
+class TaskFavoriteEvent(BaseHandler):
+    def get_filter(self):
+        cond_1 = F.data.startswith("taskpagination_")
+        cond_2 = F.data.endswith("_2_1_0") | F.data.endswith("_2_1_1")
+        return cond_1 & cond_2
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        username = user.username or user.first_name
+        theme_id = context_service.get(user.id, "study_theme")
+        page = int(callback.data.split("_")[1])
+
+        with db.session() as session:
+            user_service = UserService(session)
+            users_db = user_service.get(tg_id=user.id)
+            if users_db:
+                user_db = users_db[0]
+
+                item_service = ItemService(session)
+                tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
+                if tasks:
+                    favorite_service = FavoriteService(session)
+                    is_favorite = favorite_service.toggle(
+                        user_id=user_db.id,
+                        item_id=tasks[page].id,
+                        content_type=ContentType.TASK,
+                    )
+
+        if not users_db:
+            await callback.answer("Пользователь не найден")
+            return
+        if not tasks:
+            await callback.answer("Задач по этому теме не найдено")
+            return
+
+        total_pages = len(tasks)
+
+        logger.info(
+            f"Task favorite toggled: {is_favorite} for task {page + 1}: {username}"
+        )
+
+        keyboard = callback.message.reply_markup.inline_keyboard
+        is_show = keyboard[0][0].callback_data.endswith("_0_0_1")
+
+        buttons = text_service.get("events.task_pagination.buttons")
+        is_end = (page + 1) == total_pages
+        is_start = page == 0
+        keyboard = inline_kb(
+            buttons,
+            f"taskpagination_{page}",
+            variants_map={
+                (0, 0): int(is_show),
+                (1, 0): int(is_end),
+                (2, 0): int(is_start),
+                (2, 1): int(is_favorite),
+            },
+            include_variant_in_callback=True,
+        )
+
+        await callback.answer()
+        await callback.message.edit_reply_markup(reply_markup=keyboard)
+        if is_favorite:
+            await callback.answer("Задача добавлена в избранное")
+        else:
+            await callback.answer("Задача удалена из избранного")

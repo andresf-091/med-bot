@@ -1,7 +1,7 @@
 from aiogram import Router
 from handlers.commands.ping import PingCommand
 from handlers.commands.start import StartCommand
-from handlers.events.start_menu import StartMenuEvent
+from handlers.events.start_menu import StartMenuEvent, CheckEvent
 from handlers.events.study import StudyThemesEvent, StudyThemeEvent
 from handlers.events.theory import TheoryVariantsEvent, TheoryPaginationEvent
 from handlers.events.slides import (
@@ -11,6 +11,11 @@ from handlers.events.slides import (
     SlideFavoriteEvent,
 )
 from handlers.events.exam import ExamInstructionEvent, ExamPaginationEvent
+from handlers.events.tasks import (
+    TaskPaginationEvent,
+    TaskAnswerEvent,
+    TaskFavoriteEvent,
+)
 
 
 def register_handlers(dp):
@@ -33,5 +38,9 @@ def register_handlers(dp):
     SlidePaginationEvent(router).register()
     SlidePaginationDeleteEvent(router).register()
     SlideFavoriteEvent(router).register()
+
+    TaskPaginationEvent(router).register()
+    TaskAnswerEvent(router).register()
+    TaskFavoriteEvent(router).register()
 
     dp.include_router(router)
