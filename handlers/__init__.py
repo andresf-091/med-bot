@@ -21,7 +21,7 @@ from handlers.events.tasks import (
     TaskFavoriteEvent,
 )
 from handlers.events.favorites import FavoritesEvent
-from handlers.events.profile import ProfileEvent
+from handlers.events.profile import ProfileEvent, ProfileSubscriptionEvent
 
 
 def register_handlers(dp):
@@ -53,5 +53,6 @@ def register_handlers(dp):
     FavoritesEvent(router).register()
 
     ProfileEvent(router).register()
+    ProfileSubscriptionEvent(router).register()
 
     dp.include_router(router)

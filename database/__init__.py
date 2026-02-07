@@ -19,6 +19,7 @@ from database.services.item import ItemService
 from database.services.image import ImageService
 from database.services.favorite import FavoriteService
 from database.services.subscription import SubscriptionService
+from database.services.referral import ReferralService
 from database.db import db
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "ImageService",
     "FavoriteService",
     "SubscriptionService",
+    "ReferralService",
     "db",
 ]

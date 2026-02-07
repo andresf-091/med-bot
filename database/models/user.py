@@ -34,10 +34,16 @@ class User(Base):
         "Subscription", back_populates="user", cascade="all, delete-orphan"
     )
     referrals = relationship(
-        "Referral", back_populates="user", cascade="all, delete-orphan"
+        "Referral",
+        foreign_keys="[Referral.user_id]",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
     invites = relationship(
-        "Referral", back_populates="referral", cascade="all, delete-orphan"
+        "Referral",
+        foreign_keys="[Referral.referral_id]",
+        back_populates="referral",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (UniqueConstraint("tg_id", name="uq_user_tg_id"),)
