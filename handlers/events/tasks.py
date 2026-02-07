@@ -2,6 +2,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InputMediaPhoto
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
+from utils.subscription import if_not_premium
 from services.text import text_service
 from services.image_storage import LocalImageStorage
 from database import (
@@ -48,10 +49,10 @@ class TaskPaginationEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            users_db = user_service.get(tg_id=user.id)
-            if users_db:
-                user_db = users_db[0]
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user.id)
 
+            if is_premium:
                 item_service = ItemService(session)
                 tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
                 total_pages = len(tasks)
@@ -65,8 +66,8 @@ class TaskPaginationEvent(BaseHandler):
                         content_type=ContentType.TASK,
                     )
 
-        if not users_db:
-            await callback.answer("Пользователь не найден")
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not tasks:
             await callback.answer("Задач по этому теме не найдено")
@@ -127,10 +128,10 @@ class TaskAnswerEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            users_db = user_service.get(tg_id=user.id)
-            if users_db:
-                user_db = users_db[0]
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
 
+            if is_premium:
                 item_service = ItemService(session)
                 tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
                 if tasks:
@@ -141,6 +142,9 @@ class TaskAnswerEvent(BaseHandler):
                         content_type=ContentType.TASK,
                     )
 
+        if not is_premium:
+            await if_not_premium(callback, username)
+            return
         if not tasks:
             await callback.answer("Задач по этому теме не найдено")
             return
@@ -203,10 +207,10 @@ class TaskFavoriteEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            users_db = user_service.get(tg_id=user.id)
-            if users_db:
-                user_db = users_db[0]
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
 
+            if is_premium:
                 item_service = ItemService(session)
                 tasks = item_service.get(theme_id=theme_id, type=ContentType.TASK)
                 if tasks:
@@ -217,11 +221,11 @@ class TaskFavoriteEvent(BaseHandler):
                         content_type=ContentType.TASK,
                     )
 
-        if not users_db:
-            await callback.answer("Пользователь не найден")
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not tasks:
-            await callback.answer("Задач по этому теме не найдено")
+            await callback.answer("Задач по этой теме не найдено")
             return
 
         total_pages = len(tasks)

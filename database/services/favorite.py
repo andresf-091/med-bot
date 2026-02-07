@@ -9,13 +9,13 @@ class FavoriteService:
     def __init__(self, session: Session):
         self.session = session
 
-    def get(self, user_id, content_type: ContentType):
+    def get(self, user_id):
         return (
             self.session.query(UserFavorite)
             .filter(
                 UserFavorite.user_id == user_id,
-                UserFavorite.content_type == content_type,
             )
+            .order_by(UserFavorite.content_type)
             .all()
         )
 

@@ -2,6 +2,7 @@ from aiogram import F
 from aiogram.types import CallbackQuery, InputMediaPhoto
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
+from utils.subscription import if_not_premium
 from services.text import text_service
 from services.image_storage import LocalImageStorage
 from database import (
@@ -29,12 +30,19 @@ class SlidesListEvent(BaseHandler):
         theme_id = int(callback.data.split("_")[1])
 
         with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
+
             theme_service = ThemeService(session)
             themes = theme_service.get(id=theme_id)
 
             item_service = ItemService(session)
             slides = item_service.get(theme_id=theme_id, type=ContentType.SLIDE)
 
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
+            return
         if not themes:
             await callback.answer("Тема не найдена")
             return
@@ -49,9 +57,9 @@ class SlidesListEvent(BaseHandler):
 
         buttons = text_service.get("events.slides_list.buttons", copy_obj=True)
         slides_list = ""
-        for i, slide_title in enumerate(slide_titles):
+        for i, slide_title in enumerate(slide_titles, 1):
             buttons.append([slide_title.replace("\\", "")])
-            slides_list += f"{i + 1}\\. {slide_title}\n"
+            slides_list += f"{i}\\. {slide_title}\n"
         keyboard = inline_kb(buttons, f"slideslist_{theme_id}")
         text = text_service.get(
             "events.slides_list.text", theme=theme_name, slides_list=slides_list
@@ -95,10 +103,10 @@ class SlidePaginationEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            users_db = user_service.get(tg_id=user.id)
-            if users_db:
-                user_db = users_db[0]
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
 
+            if is_premium:
                 item_service = ItemService(session)
                 slides = item_service.get(
                     theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
@@ -116,8 +124,8 @@ class SlidePaginationEvent(BaseHandler):
                             content_type=ContentType.SLIDE,
                         )
 
-        if not users_db:
-            await callback.answer("Пользователь не найден")
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not slides:
             await callback.answer("Препараты не найдены")
@@ -219,9 +227,10 @@ class SlideFavoriteEvent(BaseHandler):
 
         with db.session() as session:
             user_service = UserService(session)
-            users_db = user_service.get(tg_id=user.id)
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
 
-            if users_db:
+            if is_premium:
                 item_service = ItemService(session)
                 slides = item_service.get(
                     theme_id=theme_id, type=ContentType.SLIDE, order=slide_order
@@ -232,13 +241,13 @@ class SlideFavoriteEvent(BaseHandler):
 
                     favorite_service = FavoriteService(session)
                     is_favorite = favorite_service.toggle(
-                        user_id=users_db[0].id,
+                        user_id=user_db.id,
                         item_id=slides[0].id,
                         content_type=ContentType.SLIDE,
                     )
 
-        if not users_db:
-            await callback.answer("Пользователь не найден")
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not slides:
             await callback.answer("Препараты не найдены")

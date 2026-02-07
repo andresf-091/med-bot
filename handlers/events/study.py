@@ -1,8 +1,9 @@
 from aiogram import F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from handlers.base import BaseHandler
-from database import db, ThemeService
+from database import db, ThemeService, UserService
 from utils.keyboards import inline_kb
+from utils.subscription import if_not_premium
 from services.context import context_service
 from services.text import text_service
 from log import get_logger
@@ -24,9 +25,17 @@ class StudyThemesEvent(BaseHandler):
         context_service.clear(user.id)
 
         with db.session() as session:
-            theme_service = ThemeService(session)
-            themes = theme_service.get()
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
 
+            if is_premium:
+                theme_service = ThemeService(session)
+                themes = theme_service.get()
+
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
+            return
         if not themes:
             await callback.answer("Темы не найдены")
             return
@@ -72,11 +81,20 @@ class StudyThemeEvent(BaseHandler):
         theme_id = int(parts[1])
 
         with db.session() as session:
-            theme_service = ThemeService(session)
-            themes = theme_service.get(id=theme_id)
-            if not themes:
-                await callback.answer("Тема не найдена")
-                return
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            is_premium = user_service.is_premium(user_db.id)
+
+            if is_premium:
+                theme_service = ThemeService(session)
+                themes = theme_service.get(id=theme_id)
+
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
+            return
+        if not themes:
+            await callback.answer("Тема не найдена")
+            return
 
         logger.info(f"Study theme {theme_id}: {username}")
 

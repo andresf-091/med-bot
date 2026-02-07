@@ -25,6 +25,7 @@ class Item(Base):
     explanation = Column(Text, nullable=True)
     options = Column(JSON, nullable=True)  # List[str] для вопросов теста
     difficulty = Column(Integer, nullable=True)  # 1-5
+    is_full = Column(Boolean, nullable=False, default=True)
     other = Column(JSON, nullable=True)  # Дополнительные данные в JSON
     relevant = Column(Boolean, nullable=False, default=True)
 

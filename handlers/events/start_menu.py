@@ -5,6 +5,7 @@ from services.context import context_service
 from services.text import text_service
 from database import db, UserService
 from utils.keyboards import inline_kb
+from utils.subscription import if_not_premium
 from log import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +23,13 @@ class StartMenuEvent(BaseHandler):
             user_service = UserService(session)
             users = user_service.get(tg_id=user.id)
             if not users:
-                user_service.create(tg_id=user.id)
+                user_service.create(tg_id=user.id, username=username)
+            user_db = users[0]
+            is_premium = user_service.is_premium(user_db.id)
+
+        if not is_premium:
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
+            return
 
         logger.info(f"Start menu: {username}")
 

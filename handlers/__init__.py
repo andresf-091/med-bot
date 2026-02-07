@@ -3,7 +3,11 @@ from handlers.commands.ping import PingCommand
 from handlers.commands.start import StartCommand
 from handlers.events.start_menu import StartMenuEvent, CheckEvent
 from handlers.events.study import StudyThemesEvent, StudyThemeEvent
-from handlers.events.theory import TheoryVariantsEvent, TheoryPaginationEvent
+from handlers.events.theory import (
+    TheoryVariantsEvent,
+    TheoryPaginationEvent,
+    TheoryFavoriteEvent,
+)
 from handlers.events.slides import (
     SlidesListEvent,
     SlidePaginationEvent,
@@ -16,6 +20,8 @@ from handlers.events.tasks import (
     TaskAnswerEvent,
     TaskFavoriteEvent,
 )
+from handlers.events.favorites import FavoritesEvent
+from handlers.events.profile import ProfileEvent
 
 
 def register_handlers(dp):
@@ -30,6 +36,7 @@ def register_handlers(dp):
 
     TheoryVariantsEvent(router).register()
     TheoryPaginationEvent(router).register()
+    TheoryFavoriteEvent(router).register()
 
     ExamInstructionEvent(router).register()
     ExamPaginationEvent(router).register()
@@ -42,5 +49,9 @@ def register_handlers(dp):
     TaskPaginationEvent(router).register()
     TaskAnswerEvent(router).register()
     TaskFavoriteEvent(router).register()
+
+    FavoritesEvent(router).register()
+
+    ProfileEvent(router).register()
 
     dp.include_router(router)

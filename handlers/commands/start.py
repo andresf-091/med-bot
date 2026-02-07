@@ -26,7 +26,11 @@ class StartCommand(BaseHandler):
             user_service = UserService(session)
             users = user_service.get(tg_id=user.id)
             if not users:
-                user_service.create(tg_id=user.id)
+                user_service.create(tg_id=user.id, username=username)
+            else:
+                user_db = users[0]
+                if not user_db.username:
+                    user_service.update(id=user_db.id, username=username)
 
         logger.info(f"Start command: {username}")
 
