@@ -18,6 +18,7 @@ class Config:
     )
 
     ADMIN_IDS: list[int] = [int(id) for id in os.getenv("ADMIN_IDS", "").split() if id]
+    PAYMENT_TOKEN: str = os.getenv("PAYMENT_TOKEN", "")
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
@@ -25,4 +26,6 @@ class Config:
     def validate(cls) -> bool:
         if not cls.BOT_TOKEN:
             raise ValueError("BOT_TOKEN обязателен")
+        if not cls.PAYMENT_TOKEN:
+            raise ValueError("PAYMENT_TOKEN обязателен")
         return True

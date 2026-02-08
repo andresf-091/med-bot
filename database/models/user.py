@@ -45,6 +45,9 @@ class User(Base):
         back_populates="referral",
         cascade="all, delete-orphan",
     )
+    payments = relationship(
+        "Payment", back_populates="user", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (UniqueConstraint("tg_id", name="uq_user_tg_id"),)
 

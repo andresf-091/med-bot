@@ -7,6 +7,7 @@ from database.models.image import Image
 from database.models.user_favorites import UserFavorite
 from database.models.subscription import Subscription
 from database.models.referral import Referral
+from database.models.payment import Payment
 
 __all__ = [
     "Base",
@@ -18,4 +19,5 @@ __all__ = [
     "UserFavorite",
     "Subscription",
     "Referral",
+    "Payment",
 ]

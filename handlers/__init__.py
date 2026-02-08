@@ -21,7 +21,14 @@ from handlers.events.tasks import (
     TaskFavoriteEvent,
 )
 from handlers.events.favorites import FavoritesEvent
-from handlers.events.profile import ProfileEvent, ProfileSubscriptionEvent
+from handlers.events.profile import (
+    ProfileEvent,
+    ProfileSubscriptionEvent,
+    ProfilePaymentEvent,
+    PaymentPreCheckoutEvent,
+    PaymentSuccessfulEvent,
+    ProfilePaymentCancelEvent,
+)
 
 
 def register_handlers(dp):
@@ -54,5 +61,9 @@ def register_handlers(dp):
 
     ProfileEvent(router).register()
     ProfileSubscriptionEvent(router).register()
+    ProfilePaymentEvent(router).register()
+    PaymentPreCheckoutEvent(router).register()
+    PaymentSuccessfulEvent(router).register()
+    ProfilePaymentCancelEvent(router).register()
 
     dp.include_router(router)

@@ -16,6 +16,7 @@ from database.models import (
     Image,
     UserFavorite,
     Referral,
+    Payment,
 )
 from bot.config import Config
 
