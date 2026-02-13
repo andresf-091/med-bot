@@ -29,3 +29,22 @@ class SubscriptionService:
         self.session.commit()
         self.session.refresh(subscription)
         return subscription
+
+    def expire_old_subscriptions(self):
+        now = datetime.now(timezone.utc)
+        expired_subscriptions = (
+            self.session.query(Subscription)
+            .filter(
+                and_(
+                    Subscription.expiration.isnot(None),
+                    Subscription.expiration <= now,
+                    Subscription.type != UserSubscription.EXPIRED,
+                )
+            )
+            .all()
+        )
+        for subscription in expired_subscriptions:
+            subscription.type = UserSubscription.EXPIRED
+        if expired_subscriptions:
+            self.session.commit()
+        return len(expired_subscriptions)

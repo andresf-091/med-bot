@@ -9,7 +9,13 @@ from aiogram.types import (
 from bot.config import Config
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
-from services.text import text_service
+from utils.referral import give_referral_bonus
+from utils.subscription import (
+    activate_subscription,
+    activate_trial,
+    get_profile_subscription_content,
+)
+from services.text import text_service, format_date, escape_md2
 from database import (
     db,
     UserService,
@@ -19,25 +25,25 @@ from database import (
     PaymentService,
     PaymentStatus,
 )
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from log import get_logger
 import uuid
 
 logger = get_logger(__name__)
 
 
-def format_date(date):
-    if date is None:
-        return "Нет"
-    formatted = date.strftime("%d.%m.%Y %H:%M")
-    return formatted.replace("-", "\\-").replace(".", "\\.")
-
-
 class ProfileEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.in_(["start_1_0", "profilesubscription_1_0"])
+        return F.data.in_(
+            [
+                "start_1_0",
+                "profilesubscription_1_0",
+                "paymentsuccessful_0_0",
+                "profilesubscriptiontrial_0_0",
+                "referral_1_0",
+                "referrallink_0_0",
+            ]
+        )
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -64,14 +70,22 @@ class ProfileEvent(BaseHandler):
                 if user_service.is_premium(referral.referral_id):
                     referrals_active_count += 1
 
+            senders = referral_service.get(referral_id=user_db.id)
+
         logger.info(f"Profile menu: {username}")
 
         buttons = text_service.get("events.profile.buttons")
-        keyboard = inline_kb(buttons, self._route, include_variant_in_callback=True)
+        is_trial = (subscription.type == UserSubscription.FREE) and not senders
+        keyboard = inline_kb(
+            buttons,
+            self._route,
+            variants_map={(0, 0): int(is_trial)},
+            include_variant_in_callback=True,
+        )
 
         text = text_service.get(
             "events.profile.text",
-            username=username,
+            username=escape_md2(username),
             created_at=format_date(user_db.created_at),
             subscription_type=subscription.type.value if subscription.type else "FREE",
             activation_date=format_date(subscription.activation),
@@ -98,11 +112,12 @@ class ProfileSubscriptionEvent(BaseHandler):
         user = callback.from_user
         username = user.username or user.first_name
 
-        logger.info(f"Profile subscription menu: {username}")
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            text, keyboard = get_profile_subscription_content(session, user_db)
 
-        text = text_service.get("events.profile_subscription.text")
-        buttons = text_service.get("events.profile_subscription.buttons")
-        keyboard = inline_kb(buttons, self._route)
+        logger.info(f"Profile subscription menu: {username}")
 
         await callback.answer()
         await callback.message.edit_text(
@@ -112,16 +127,50 @@ class ProfileSubscriptionEvent(BaseHandler):
         )
 
 
-class ProfilePaymentEvent(BaseHandler):
+class ProfileSubscriptionTrialEvent(BaseHandler):
     def get_filter(self):
-        return F.data.in_(["profilesubscription_0_0"])
+        return F.data.in_(["profilesubscription_0_0_1"])
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
         username = user.username or user.first_name
 
-        title = text_service.get("events.profile_payment.text.title")
-        description = text_service.get("events.profile_payment.text.description")
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+
+            subscription_service = SubscriptionService(session)
+            subscription = activate_trial(subscription_service, user_db)
+
+        if not subscription:
+            await callback.message.answer(
+                "У вас уже есть/была подписка. Перезайдите в профиль"
+            )
+            return
+
+        text = text_service.get(
+            "events.profile_subscription_trial.text",
+            expiration_date=format_date(subscription.expiration),
+        )
+        buttons = text_service.get("events.profile_subscription_trial.buttons")
+        keyboard = inline_kb(buttons, self._route)
+
+        await callback.message.answer(
+            text, **self.DEFAULT_SEND_PARAMS, reply_markup=keyboard
+        )
+        await callback.message.delete()
+
+
+class PaymentEvent(BaseHandler):
+    def get_filter(self):
+        return F.data.in_(["profilesubscription_0_0_0", "profilesubscription_0_0_2"])
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        username = user.username or user.first_name
+
+        title = text_service.get("events.payment.text.title")
+        description = text_service.get("events.payment.text.description")
 
         with db.session() as session:
             user_service = UserService(session)
@@ -144,7 +193,7 @@ class ProfilePaymentEvent(BaseHandler):
 
         logger.info(f"Payment requested for payment {payment.id} for user {username}")
 
-        buttons = text_service.get("events.profile_payment.buttons")
+        buttons = text_service.get("events.payment.buttons")
         keyboard = inline_kb(
             buttons,
             self._route,
@@ -240,27 +289,10 @@ class PaymentSuccessfulEvent(BaseHandler):
                     payment_service.update(payment.id, status=PaymentStatus.COMPLETED)
 
                     subscription_service = SubscriptionService(session)
-                    now = datetime.now()
-                    expiration = now + relativedelta(months=1)
+                    referral_service = ReferralService(session)
 
-                    subscriptions = subscription_service.get(user_id=user_db.id)
-                    if subscriptions:
-                        subscription = subscriptions[0]
-                        subscription_service.update(
-                            subscription.id,
-                            type=UserSubscription.PREMIUM,
-                            activation=now,
-                            expiration=expiration,
-                            renewal=expiration,
-                        )
-                    else:
-                        subscription_service.create(
-                            user_id=user_db.id,
-                            type=UserSubscription.PREMIUM,
-                            activation=now,
-                            expiration=expiration,
-                            renewal=expiration,
-                        )
+                    activate_subscription(subscription_service, user_db)
+                    give_referral_bonus(referral_service, subscription_service, user_db)
 
         if not payments:
             logger.error(
@@ -274,12 +306,18 @@ class PaymentSuccessfulEvent(BaseHandler):
             return
 
         logger.info(f"Payment successful: {transaction_id} for user {user_db.id}")
-        await message.answer("✅ Оплата успешно обработана! Подписка активирована.")
+
+        text = text_service.get("events.payment_successful.text")
+        buttons = text_service.get("events.payment_successful.buttons")
+        keyboard = inline_kb(buttons, self._route)
+
+        await message.answer(text, **self.DEFAULT_SEND_PARAMS, reply_markup=keyboard)
+        await message.delete()
 
 
-class ProfilePaymentCancelEvent(BaseHandler):
+class PaymentCancelEvent(BaseHandler):
     def get_filter(self):
-        return F.data.in_(["profilepayment_1_0"])
+        return F.data.in_(["payment_1_0"])
 
     async def handle(self, callback: CallbackQuery):
         user = callback.from_user
@@ -295,11 +333,9 @@ class ProfilePaymentCancelEvent(BaseHandler):
                 if payment.status == PaymentStatus.PENDING:
                     payment_service.update(payment.id, status=PaymentStatus.CANCELLED)
 
-        logger.info(f"Payment cancelled for user {username} {user_db.id}")
+            text, keyboard = get_profile_subscription_content(session, user_db)
 
-        text = text_service.get("events.profile_subscription.text")
-        buttons = text_service.get("events.profile_subscription.buttons")
-        keyboard = inline_kb(buttons, "profilesubscription")
+        logger.info(f"Payment cancelled for user {username} {user_db.id}")
 
         await callback.message.answer(
             text,

@@ -16,6 +16,7 @@ class ExamInstructionEvent(BaseHandler):
         )
 
     async def handle(self, callback: CallbackQuery):
+        await callback.answer("В разработке")
         pass
 
 
@@ -27,4 +28,5 @@ class ExamPaginationEvent(BaseHandler):
         ) | F.data.startswith("exampagination_")
 
     async def handle(self, callback: CallbackQuery):
+        await callback.answer("В разработке")
         pass

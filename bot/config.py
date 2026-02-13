@@ -17,10 +17,18 @@ class Config:
         f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
 
-    ADMIN_IDS: list[int] = [int(id) for id in os.getenv("ADMIN_IDS", "").split() if id]
+    ADMIN_IDS: list[int] = [
+        int(x) for x in os.getenv("ADMIN_IDS", "").split() if x.strip()
+    ]
+    SUPPORT_GROUP_ID: Optional[int] = (
+        int(x) if (x := os.getenv("SUPPORT_GROUP_ID", "").strip()) else None
+    )
     PAYMENT_TOKEN: str = os.getenv("PAYMENT_TOKEN", "")
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+    REFERRAL_BONUS: int = int(os.getenv("REFERRAL_BONUS", 10))
+    TRIAL_PERIOD: int = int(os.getenv("TRIAL_PERIOD", 10))
 
     @classmethod
     def validate(cls) -> bool:

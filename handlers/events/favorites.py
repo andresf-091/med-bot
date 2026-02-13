@@ -43,7 +43,7 @@ class FavoritesEvent(BaseHandler):
                         items.append(item_service.get(id=favorite.item_id)[0])
 
         if not is_premium:
-            await if_not_premium(callback, username, **self.DEFAULT_SEND_PARAMS)
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not favorites:
             await callback.answer("Избранные не найдены")

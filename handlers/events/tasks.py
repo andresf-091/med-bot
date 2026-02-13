@@ -50,7 +50,7 @@ class TaskPaginationEvent(BaseHandler):
         with db.session() as session:
             user_service = UserService(session)
             user_db = user_service.get(tg_id=user.id)[0]
-            is_premium = user_service.is_premium(user.id)
+            is_premium = user_service.is_premium(user_db.id)
 
             if is_premium:
                 item_service = ItemService(session)
@@ -143,7 +143,7 @@ class TaskAnswerEvent(BaseHandler):
                     )
 
         if not is_premium:
-            await if_not_premium(callback, username)
+            await if_not_premium(callback, username, self.DEFAULT_SEND_PARAMS)
             return
         if not tasks:
             await callback.answer("Задач по этому теме не найдено")

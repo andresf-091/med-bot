@@ -20,8 +20,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tg_id = Column(
         BigInteger, unique=True, nullable=False, index=True
-    )  # Telegram user ID
+    )
     username = Column(String, unique=True, nullable=True)
+    ref_code = Column(String(32), unique=True, nullable=True, index=True)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.USER)
     language = Column(Enum(UserLanguage), nullable=False, default=UserLanguage.RU)
     created_at = Column(DateTime(timezone=True), nullable=True, default=datetime.now)

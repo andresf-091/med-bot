@@ -1,7 +1,7 @@
 from aiogram import F
 from aiogram.types import CallbackQuery
 from handlers.base import BaseHandler
-from services.text import text_service
+from services.text import text_service, escape_md2
 from database import db, UserService
 from utils.keyboards import inline_kb
 from log import get_logger
@@ -28,7 +28,7 @@ class StartMenuEvent(BaseHandler):
 
         buttons = text_service.get("commands.start.buttons")
         keyboard = inline_kb(buttons, "start")
-        text = text_service.get("commands.start.text", username=username)
+        text = text_service.get("commands.start.text", username=escape_md2(username))
 
         await callback.answer()
         await callback.message.edit_text(

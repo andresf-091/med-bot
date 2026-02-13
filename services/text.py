@@ -32,3 +32,40 @@ class TextService:
 
 
 text_service = TextService(locale="ru")
+
+MD2_ESCAPE = (
+    "_",
+    "*",
+    "[",
+    "]",
+    "(",
+    ")",
+    "~",
+    "`",
+    ">",
+    "#",
+    "+",
+    "-",
+    "=",
+    "|",
+    "{",
+    "}",
+    ".",
+    "!",
+)
+
+
+def escape_md2(s):
+    if s is None:
+        return ""
+    out = str(s)
+    for c in MD2_ESCAPE:
+        out = out.replace(c, "\\" + c)
+    return out
+
+
+def format_date(date):
+    if date is None:
+        return "Нет"
+    formatted = date.strftime("%d.%m.%Y %H:%M")
+    return formatted.replace("-", "\\-").replace(".", "\\.")

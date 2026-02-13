@@ -24,10 +24,19 @@ from handlers.events.favorites import FavoritesEvent
 from handlers.events.profile import (
     ProfileEvent,
     ProfileSubscriptionEvent,
-    ProfilePaymentEvent,
+    PaymentEvent,
     PaymentPreCheckoutEvent,
     PaymentSuccessfulEvent,
-    ProfilePaymentCancelEvent,
+    PaymentCancelEvent,
+    ProfileSubscriptionTrialEvent,
+)
+from handlers.events.referral import ReferralEvent, ReferralGetLinkEvent
+from handlers.events.faq import FaqEvent
+from handlers.events.contact import (
+    ContactEvent,
+    SupportCancelEvent,
+    SupportRequestEvent,
+    SupportReplyToMessageEvent,
 )
 
 
@@ -61,9 +70,18 @@ def register_handlers(dp):
 
     ProfileEvent(router).register()
     ProfileSubscriptionEvent(router).register()
-    ProfilePaymentEvent(router).register()
+    PaymentEvent(router).register()
     PaymentPreCheckoutEvent(router).register()
     PaymentSuccessfulEvent(router).register()
-    ProfilePaymentCancelEvent(router).register()
+    PaymentCancelEvent(router).register()
+    ProfileSubscriptionTrialEvent(router).register()
+    ReferralEvent(router).register()
+    ReferralGetLinkEvent(router).register()
+
+    FaqEvent(router).register()
+    ContactEvent(router).register()
+    SupportCancelEvent(router).register()
+    SupportReplyToMessageEvent(router).register()
+    SupportRequestEvent(router).register()
 
     dp.include_router(router)

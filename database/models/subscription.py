@@ -13,6 +13,7 @@ class Subscription(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+        unique=True,
     )
     type = Column(Enum(UserSubscription), nullable=False)
     activation = Column(DateTime(timezone=True), nullable=True)
