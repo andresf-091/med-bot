@@ -26,20 +26,32 @@ class TaskPaginationEvent(BaseHandler):
         cond_2 = F.data.startswith("taskpagination_")
         cond_3 = F.data.endswith("_1_0_0") | F.data.endswith("_2_0_0")
         cond_4 = F.data.endswith("_1_0_1") | F.data.endswith("_2_0_1")
-        return cond_1 | (cond_2 & (cond_3 | cond_4))
+        cond_5 = F.data.func(
+            lambda d: d.startswith("taskpagination_") and len(d.split("_")) == 4
+        )
+        return cond_1 | (cond_2 & (cond_3 | cond_4 | cond_5))
 
     async def handle(self, callback: CallbackQuery):
-        if callback.data.endswith("_1_0_1") or callback.data.endswith("_2_0_1"):
+        parts = callback.data.split("_")
+        if len(parts) > 5 and (
+            callback.data.endswith("_1_0_1") or callback.data.endswith("_2_0_1")
+        ):
             await callback.answer("Это первая/последняя страница")
             return
 
         user = callback.from_user
         username = user.username or user.first_name
-        parts = callback.data.split("_")
         theme_id = int(parts[1])
+        from_fav = (
+            int(parts[3])
+            if len(parts) >= 6
+            else (1 if len(parts) == 4 else 0)
+        )
 
         if callback.data.startswith("studytheme_"):
             page = 0
+        elif len(parts) == 4:
+            page = int(parts[2])
         else:
             current_page = int(parts[2])
             if callback.data.endswith("_2_0_0"):
@@ -82,16 +94,22 @@ class TaskPaginationEvent(BaseHandler):
         buttons = text_service.get("events.task_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"taskpagination_{theme_id}_{page}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(3, 0)] = {"callback_data": "start_1_1"}
         keyboard = inline_kb(
             buttons,
-            f"taskpagination_{theme_id}_{page}",
+            prefix,
             variants_map={
                 (0, 0): 0,
                 (1, 0): int(is_end),
                 (2, 0): int(is_start),
                 (2, 1): int(is_favorite),
+                (3, 0): from_fav,
             },
             include_variant_in_callback=True,
+            button_kwargs_map=button_kwargs_map or None,
         )
         text = text_service.get(
             "events.task_pagination.text",
@@ -123,6 +141,7 @@ class TaskAnswerEvent(BaseHandler):
         parts = callback.data.split("_")
         theme_id = int(parts[1])
         page = int(parts[2])
+        from_fav = int(parts[3]) if len(parts) >= 6 else 0
 
         is_show = callback.data.endswith("_0_0_0")
 
@@ -164,16 +183,22 @@ class TaskAnswerEvent(BaseHandler):
         buttons = text_service.get("events.task_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"taskpagination_{theme_id}_{page}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(3, 0)] = {"callback_data": "start_1_1"}
         keyboard = inline_kb(
             buttons,
-            f"taskpagination_{theme_id}_{page}",
+            prefix,
             variants_map={
                 (0, 0): int(is_show),
                 (1, 0): int(is_end),
                 (2, 0): int(is_start),
                 (2, 1): int(is_favorite),
+                (3, 0): from_fav,
             },
             include_variant_in_callback=True,
+            button_kwargs_map=button_kwargs_map or None,
         )
         text = text_service.get(
             "events.task_pagination.text",
@@ -204,6 +229,7 @@ class TaskFavoriteEvent(BaseHandler):
         parts = callback.data.split("_")
         theme_id = int(parts[1])
         page = int(parts[2])
+        from_fav = int(parts[3]) if len(parts) >= 7 else 0
 
         with db.session() as session:
             user_service = UserService(session)
@@ -240,16 +266,22 @@ class TaskFavoriteEvent(BaseHandler):
         buttons = text_service.get("events.task_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"taskpagination_{theme_id}_{page}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(3, 0)] = {"callback_data": "start_1_1"}
         keyboard = inline_kb(
             buttons,
-            f"taskpagination_{theme_id}_{page}",
+            prefix,
             variants_map={
                 (0, 0): int(is_show),
                 (1, 0): int(is_end),
                 (2, 0): int(is_start),
                 (2, 1): int(is_favorite),
+                (3, 0): from_fav,
             },
             include_variant_in_callback=True,
+            button_kwargs_map=button_kwargs_map or None,
         )
 
         await callback.answer()

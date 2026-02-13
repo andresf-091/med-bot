@@ -90,9 +90,12 @@ class SlidePaginationEvent(BaseHandler):
         parts = callback.data.split("_")
         theme_id = int(parts[1])
         slide_order = int(parts[2]) - int(callback.data.startswith("slideslist_"))
-        current_page = (
-            int(parts[3]) if callback.data.startswith("slidepagination_") else 0
-        )
+        if callback.data.startswith("slideslist_"):
+            current_page = 0
+            from_fav = int(parts[3]) if len(parts) >= 4 else 0
+        else:
+            current_page = int(parts[3])
+            from_fav = int(parts[4]) if len(parts) >= 7 else 0
 
         if callback.data.startswith("slideslist_"):
             page = 0
@@ -165,14 +168,20 @@ class SlidePaginationEvent(BaseHandler):
         buttons = text_service.get("events.slide_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"slidepagination_{theme_id}_{slide_order}_{page}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(3, 0)] = {"callback_data": "delete_message"}
         keyboard = inline_kb(
             buttons,
-            f"slidepagination_{theme_id}_{slide_order}_{page}",
+            prefix,
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
                 (1, 1): int(is_favorite),
+                (3, 0): from_fav,
             },
+            button_kwargs_map=button_kwargs_map or None,
         )
 
         logger.info(
@@ -224,6 +233,7 @@ class SlideFavoriteEvent(BaseHandler):
         theme_id = int(parts[1])
         slide_order = int(parts[2])
         current_page = int(parts[3])
+        from_fav = int(parts[4]) if len(parts) >= 7 else 0
 
         with db.session() as session:
             user_service = UserService(session)
@@ -260,14 +270,20 @@ class SlideFavoriteEvent(BaseHandler):
         buttons = text_service.get("events.slide_pagination.buttons")
         is_end = (current_page + 1) == total_pages
         is_start = current_page == 0
+        prefix = f"slidepagination_{theme_id}_{slide_order}_{current_page}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(3, 0)] = {"callback_data": "delete_message"}
         keyboard = inline_kb(
             buttons,
-            f"slidepagination_{theme_id}_{slide_order}_{current_page}",
+            prefix,
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
                 (1, 1): int(is_favorite),
+                (3, 0): from_fav,
             },
+            button_kwargs_map=button_kwargs_map or None,
         )
         await callback.message.edit_reply_markup(reply_markup=keyboard)
         if is_favorite:
@@ -279,7 +295,9 @@ class SlideFavoriteEvent(BaseHandler):
 class SlidePaginationDeleteEvent(BaseHandler):
 
     def get_filter(self):
-        return F.data.startswith("slidepagination_") & F.data.endswith("_3_0")
+        return (F.data.startswith("slidepagination_") & F.data.endswith("_3_0")) | (
+            F.data == "delete_message"
+        )
 
     async def handle(self, callback: CallbackQuery):
         await callback.answer()

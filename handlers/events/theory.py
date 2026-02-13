@@ -24,7 +24,7 @@ class TheoryVariantsEvent(BaseHandler):
 
     def get_filter(self):
         return (F.data.startswith("studytheme_") & F.data.endswith("_0_0")) | (
-            F.data.startswith("theorypagination_") & F.data.endswith("_2_0")
+            F.data.startswith("theorypagination_") & F.data.endswith("_2_0_0")
         )
 
     async def handle(self, callback: CallbackQuery):
@@ -80,7 +80,10 @@ class TheoryPaginationEvent(BaseHandler):
         current_page = (
             int(parts[2]) if callback.data.startswith("theorypagination_") else 0
         )
-        is_full = callback.data.endswith("_0_0")
+        is_full = (
+            bool(int(parts[3])) if len(parts) >= 5 else callback.data.endswith("_0_0")
+        )
+        from_fav = int(parts[4]) if len(parts) >= 7 else 0
 
         if callback.data.startswith("theoryvariants_"):
             page = 0
@@ -150,15 +153,21 @@ class TheoryPaginationEvent(BaseHandler):
         buttons = text_service.get("events.theory_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"theorypagination_{theme_id}_{page}_{int(is_full)}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(2, 0)] = {"callback_data": "start_1_1"}
         keyboard = inline_kb(
             buttons,
-            f"theorypagination_{theme_id}_{page}_{int(is_full)}",
+            prefix,
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
                 (1, 1): int(is_favorite),
+                (2, 0): from_fav,
             },
             include_variant_in_callback=True,
+            button_kwargs_map=button_kwargs_map or None,
         )
 
         if callback.data.startswith("theoryvariants_"):
@@ -216,7 +225,8 @@ class TheoryFavoriteEvent(BaseHandler):
         parts = callback.data.split("_")
         theme_id = int(parts[1])
         page = int(parts[2])
-        is_full = bool(parts[3])
+        is_full = bool(int(parts[3]))
+        from_fav = int(parts[4]) if len(parts) >= 8 else 0
 
         with db.session() as session:
             user_service = UserService(session)
@@ -263,15 +273,21 @@ class TheoryFavoriteEvent(BaseHandler):
         buttons = text_service.get("events.theory_pagination.buttons")
         is_end = (page + 1) == total_pages
         is_start = page == 0
+        prefix = f"theorypagination_{theme_id}_{page}_{int(is_full)}_{from_fav}"
+        button_kwargs_map = {}
+        if from_fav:
+            button_kwargs_map[(2, 0)] = {"callback_data": "start_1_1"}
         keyboard = inline_kb(
             buttons,
-            f"theorypagination_{theme_id}_{page}",
+            prefix,
             variants_map={
                 (0, 0): int(is_end),
                 (1, 0): int(is_start),
                 (1, 1): int(is_favorite),
+                (2, 0): from_fav,
             },
             include_variant_in_callback=True,
+            button_kwargs_map=button_kwargs_map or None,
         )
 
         await callback.message.edit_text(
