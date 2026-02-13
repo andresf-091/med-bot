@@ -1,7 +1,6 @@
-"""Настройка подключения к базе данных PostgreSQL"""
-
+from contextlib import contextmanager
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from bot.config import Config
 from database.models.base import Base
@@ -11,54 +10,54 @@ logger = get_logger(__name__)
 
 
 class Database:
-    """Класс для управления подключением к БД"""
+    _instance = None
 
-    def __init__(self, database_url: str):
-        """
-        Args:
-            database_url: PostgreSQL connection string
-                format: postgresql://user:password@host:port/dbname
-        """
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
         self.engine = create_engine(
-            database_url,
-            poolclass=NullPool,  # Для простоты, можно использовать pool для production
-            echo=False,  # Логировать SQL запросы (включить для отладки)
+            Config.DATABASE_URL,
+            poolclass=NullPool,
+            echo=False,
         )
         self.SessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=self.engine
+            autocommit=False,
+            autoflush=False,
+            bind=self.engine,
+            expire_on_commit=False,
         )
+        self._initialized = True
+        logger.info("Database connection initialized")
 
     def create_tables(self):
-        """Создать все таблицы"""
         Base.metadata.create_all(bind=self.engine)
         logger.info("Database tables created")
 
     def drop_tables(self):
-        """Удалить все таблицы (осторожно!)"""
         Base.metadata.drop_all(bind=self.engine)
         logger.warning("Database tables dropped")
 
-    def get_session(self) -> Session:
-        """Получить новую сессию БД"""
-        return self.SessionLocal()
+    @contextmanager
+    def session(self):
+        session = self.SessionLocal()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def close(self):
-        """Закрыть подключение"""
         self.engine.dispose()
+        logger.info("Database connection closed")
 
 
-# Глобальный экземпляр (инициализируется в main)
-db: Database = None
-
-
-def init_db(database_url: str = None):
-    """Инициализировать подключение к БД"""
-    global db
-    if database_url is None:
-        # URL из конфига
-        database_url = getattr(Config, "DATABASE_URL", None)
-        if not database_url:
-            raise ValueError("DATABASE_URL не указан в конфигурации")
-
-    db = Database(database_url)
-    return db
+db = Database()

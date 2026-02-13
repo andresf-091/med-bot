@@ -16,6 +16,9 @@ class ContextService:
     def clear(self, user_id: int):
         self._contexts.pop(user_id, None)
 
+    def clear_key(self, user_id: int, key: str):
+        self._contexts[user_id].pop(key, None)
+
     def clear_all(self):
         self._contexts.clear()
 

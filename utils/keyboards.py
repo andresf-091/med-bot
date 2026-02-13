@@ -9,6 +9,7 @@ def inline_kb(
     variants_map: dict[tuple[int, int], int] | None = None,
     variant_resolver=None,
     include_variant_in_callback: bool = False,
+    button_kwargs_map: dict[tuple[int, int], dict] | None = None,
 ) -> InlineKeyboardMarkup:
     """
     Строит InlineKeyboardMarkup из "матрицы".
@@ -26,6 +27,9 @@ def inline_kb(
     если include_variant_in_callback=True:
       - для обычной кнопки: остается f"{callback_prefix}_{row}_{col}"
       - для варианта списка: f"{callback_prefix}_{row}_{col}_{variant_idx}"
+
+    button_kwargs_map: дополнительные kwargs для кнопок по координатам (row, col) -> dict
+      Например: {(0, 1): {"url": "https://example.com"}} для кнопки в строке 0, столбце 1
     """
     rows = []
     for r, row in enumerate(matrix_texts):
@@ -57,6 +61,10 @@ def inline_kb(
             else:
                 cb = f"{callback_prefix}_{r}_{c}"
 
-            buttons_row.append(InlineKeyboardButton(text=text, callback_data=cb))
+            button_params = {"text": text, "callback_data": cb}
+            if button_kwargs_map is not None and (r, c) in button_kwargs_map:
+                button_params.update(button_kwargs_map[(r, c)])
+
+            buttons_row.append(InlineKeyboardButton(**button_params))
         rows.append(buttons_row)
     return InlineKeyboardMarkup(inline_keyboard=rows)

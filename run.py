@@ -2,6 +2,7 @@ import sys
 import asyncio
 from bot.config import Config
 from bot.main import main
+from database import db
 
 try:
     Config.validate()
@@ -14,3 +15,5 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Bot stopped by user")
+    finally:
+        db.close()
