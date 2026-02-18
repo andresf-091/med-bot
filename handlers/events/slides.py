@@ -92,7 +92,7 @@ class SlidePaginationEvent(BaseHandler):
         slide_order = int(parts[2]) - int(callback.data.startswith("slideslist_"))
         if callback.data.startswith("slideslist_"):
             current_page = 0
-            from_fav = int(parts[3]) if len(parts) >= 4 else 0
+            from_fav = int(parts[3]) if len(parts) == 4 else 0
         else:
             current_page = int(parts[3])
             from_fav = int(parts[4]) if len(parts) >= 7 else 0
