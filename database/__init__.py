@@ -7,6 +7,7 @@ from database.models import (
     UserFavorite,
     Subscription,
     Payment,
+    Result,
 )
 from database.enum import (
     ContentType,
@@ -23,6 +24,7 @@ from database.services.favorite import FavoriteService
 from database.services.subscription import SubscriptionService
 from database.services.referral import ReferralService
 from database.services.payment import PaymentService
+from database.services.result import ResultService
 from database.db import db
 
 __all__ = [
@@ -34,6 +36,7 @@ __all__ = [
     "UserFavorite",
     "Subscription",
     "Payment",
+    "Result",
     "ContentType",
     "UserRole",
     "UserSubscription",
@@ -47,5 +50,6 @@ __all__ = [
     "SubscriptionService",
     "ReferralService",
     "PaymentService",
+    "ResultService",
     "db",
 ]

@@ -8,6 +8,7 @@ from database.models.user_favorites import UserFavorite
 from database.models.subscription import Subscription
 from database.models.referral import Referral
 from database.models.payment import Payment
+from database.models.result import Result
 
 __all__ = [
     "Base",
@@ -20,4 +21,5 @@ __all__ = [
     "Subscription",
     "Referral",
     "Payment",
+    "Result",
 ]

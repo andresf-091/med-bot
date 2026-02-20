@@ -6,7 +6,7 @@ from aiogram.enums import ParseMode, ContentType
 class BaseHandler(ABC):
     DEFAULT_SEND_PARAMS: dict = {
         "protect_content": True,
-        "parse_mode": ParseMode.MARKDOWN_V2,
+        "parse_mode": ParseMode.MARKDOWN,
         "link_preview": False,
     }
 
