@@ -1,6 +1,6 @@
 from aiogram import F
 from aiogram.types import Message
-from services.text import text_service, escape_md2
+from services.text import text_service
 from database import db, UserService, ReferralService
 from handlers.base import BaseHandler
 from utils.keyboards import inline_kb
@@ -86,7 +86,7 @@ class StartCommand(BaseHandler):
 
         buttons = text_service.get("commands.start.buttons")
         keyboard = inline_kb(buttons, self._route)
-        text = text_service.get("commands.start.text", username=escape_md2(username))
+        text = text_service.get("commands.start.text", username=username)
 
         await message.reply(
             text,

@@ -1,7 +1,7 @@
 from aiogram.types import CallbackQuery
 from database import SubscriptionService, User, UserSubscription, ReferralService
 from bot.config import Config
-from services.text import text_service, escape_md2
+from services.text import text_service
 from utils.keyboards import inline_kb
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 async def if_not_premium(
     callback: CallbackQuery, username: str, default_send_params: dict
 ):
-    text = text_service.get("events.if_not_premium.text", username=escape_md2(username))
+    text = text_service.get("events.if_not_premium.text", username=username)
     buttons = text_service.get("events.if_not_premium.buttons")
     keyboard = inline_kb(buttons, "subscribe")
 

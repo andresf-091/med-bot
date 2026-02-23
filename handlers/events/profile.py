@@ -15,7 +15,7 @@ from utils.subscription import (
     activate_trial,
     get_profile_subscription_content,
 )
-from services.text import text_service, format_date, escape_md2
+from services.text import text_service, format_date
 from database import (
     db,
     UserService,
@@ -85,7 +85,7 @@ class ProfileEvent(BaseHandler):
 
         text = text_service.get(
             "events.profile.text",
-            username=escape_md2(username),
+            username=username,
             created_at=format_date(user_db.created_at),
             subscription_type=subscription.type.value if subscription.type else "FREE",
             activation_date=format_date(subscription.activation),
