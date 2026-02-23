@@ -57,6 +57,7 @@ class FavoritesEvent(BaseHandler):
                                     break
                         items_data.append(
                             {
+                                "item_id": item.id,
                                 "type": item.type,
                                 "title": item.title,
                                 "is_full": item.is_full,
@@ -126,6 +127,10 @@ class FavoritesEvent(BaseHandler):
                 ):
                     button_kwargs_map[(row, 0)] = {
                         "callback_data": f"taskpagination_{data['theme_id']}_{data['task_page']}_1"
+                    }
+                elif content_type == ContentType.QUESTION:
+                    button_kwargs_map[(row, 0)] = {
+                        "callback_data": f"examquestion_{data['item_id']}"
                     }
                 row += 1
 

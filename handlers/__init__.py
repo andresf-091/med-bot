@@ -14,7 +14,14 @@ from handlers.events.slides import (
     SlidePaginationDeleteEvent,
     SlideFavoriteEvent,
 )
-from handlers.events.exam import ExamInstructionEvent, ExamPaginationEvent
+from handlers.events.exam import (
+    ExamInstructionEvent,
+    ExamPaginationEvent,
+    ExamFavoriteEvent,
+    ExamQuestionEvent,
+    ExamQuestionAnswerEvent,
+    ExamQuestionFavoriteEvent,
+)
 from handlers.events.tasks import (
     TaskPaginationEvent,
     TaskAnswerEvent,
@@ -56,6 +63,10 @@ def register_handlers(dp):
 
     ExamInstructionEvent(router).register()
     ExamPaginationEvent(router).register()
+    ExamFavoriteEvent(router).register()
+    ExamQuestionEvent(router).register()
+    ExamQuestionAnswerEvent(router).register()
+    ExamQuestionFavoriteEvent(router).register()
 
     SlidesListEvent(router).register()
     SlidePaginationEvent(router).register()

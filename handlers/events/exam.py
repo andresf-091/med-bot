@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 import random
 from handlers.base import BaseHandler
 from services.context import context_service
-from services.text import text_service, escape_md2
+from services.text import text_service
 from utils.keyboards import inline_kb
 from utils.subscription import if_not_premium
 from database import (
@@ -13,6 +13,7 @@ from database import (
     ItemService,
     ThemeService,
     ResultService,
+    FavoriteService,
 )
 from log import get_logger
 
@@ -160,10 +161,16 @@ class ExamPaginationEvent(BaseHandler):
         return F.data.startswith("examstart_") | F.data.startswith("exampagination_")
 
     def _question_keyboard(
-        self, theme_id: int, difficulty: int, q_idx: int, q_data: dict
+        self, theme_id: int, difficulty: int, q_idx: int, q_data: dict,
+        is_favorite: bool = False,
     ):
         rows = [[option] for option in q_data["options"]]
+        fav_variants = text_service.get("events.exam.buttons.favorite")
+        rows.append([fav_variants])
         rows.append([text_service.get("events.exam.buttons.to_menu")])
+
+        fav_row = len(q_data["options"])
+        menu_row = fav_row + 1
 
         button_kwargs_map = {}
         for i, _ in enumerate(q_data["options"]):
@@ -172,12 +179,16 @@ class ExamPaginationEvent(BaseHandler):
                     f"exampagination_{theme_id}_{difficulty}_{q_idx}_{q_data['id']}_{i}"
                 )
             }
-        button_kwargs_map[(len(rows) - 1, 0)] = {
+        button_kwargs_map[(fav_row, 0)] = {
+            "callback_data": f"examfavorite_{theme_id}_{difficulty}_{q_idx}_{q_data['id']}"
+        }
+        button_kwargs_map[(menu_row, 0)] = {
             "callback_data": f"studythemes_{theme_id}_0_0"
         }
         return inline_kb(
             rows,
             f"exampagination_{theme_id}_{difficulty}_{q_idx}",
+            variants_map={(fav_row, 0): int(is_favorite)},
             button_kwargs_map=button_kwargs_map,
         )
 
@@ -237,13 +248,28 @@ class ExamPaginationEvent(BaseHandler):
             context_service.set(user.id, "exam_state", exam_state)
 
             q_data = questions[0]
+
+            with db.session() as session:
+                user_service = UserService(session)
+                user_db = user_service.get(tg_id=user.id)[0]
+                favorite_service = FavoriteService(session)
+                is_favorite = favorite_service.is_favorite(
+                    user_id=user_db.id,
+                    content_type=ContentType.QUESTION,
+                    item_id=q_data["id"],
+                )
+
             text = text_service.get(
                 "events.exam_pagination.text",
                 question_number=1,
                 total_questions=len(questions),
+                difficulty=difficulty,
+                score=0,
                 question=q_data["question"],
             )
-            keyboard = self._question_keyboard(theme_id, difficulty, 0, q_data)
+            keyboard = self._question_keyboard(
+                theme_id, difficulty, 0, q_data, is_favorite=is_favorite,
+            )
 
             logger.info(
                 f"Exam started theme={theme_id}, difficulty={difficulty}, questions={len(questions)}: {username}"
@@ -323,12 +349,25 @@ class ExamPaginationEvent(BaseHandler):
             logger.info(
                 f"Exam finished theme={theme_id}, difficulty={difficulty}, score={final_score}/{len(questions)}: {username}"
             )
+            total_questions = len(questions)
+            ratio = final_score / total_questions if total_questions else 0
+            if ratio >= 0.7:
+                rating = text_service.get("events.exam.messages.rating_high")
+                closing = text_service.get("events.exam.messages.closing_high")
+            elif ratio >= 0.3:
+                rating = text_service.get("events.exam.messages.rating_mid")
+                closing = text_service.get("events.exam.messages.closing_mid")
+            else:
+                rating = text_service.get("events.exam.messages.rating_low")
+                closing = text_service.get("events.exam.messages.closing_low")
 
             finish_text = text_service.get(
                 "events.exam.finish_text",
                 difficulty=difficulty,
                 score=final_score,
-                total_questions=len(questions),
+                total_questions=total_questions,
+                rating=rating,
+                closing=closing,
             )
             keyboard = inline_kb(
                 [
@@ -355,14 +394,33 @@ class ExamPaginationEvent(BaseHandler):
         context_service.set(user.id, "exam_state", exam_state)
 
         next_question = questions[next_index]
+
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            favorite_service = FavoriteService(session)
+            next_is_favorite = favorite_service.is_favorite(
+                user_id=user_db.id,
+                content_type=ContentType.QUESTION,
+                item_id=next_question["id"],
+            )
+
         text = text_service.get(
             "events.exam_pagination.text",
             question_number=next_index + 1,
             total_questions=len(questions),
+            difficulty=difficulty,
+            score=exam_state["score"],
+            reaction=(
+                text_service.get("events.exam.messages.answer_correct")
+                if is_correct
+                else text_service.get("events.exam.messages.answer_wrong")
+            ),
             question=next_question["question"],
         )
         keyboard = self._question_keyboard(
-            theme_id, difficulty, next_index, next_question
+            theme_id, difficulty, next_index, next_question,
+            is_favorite=next_is_favorite,
         )
 
         await callback.answer(
@@ -370,6 +428,196 @@ class ExamPaginationEvent(BaseHandler):
             if is_correct
             else text_service.get("events.exam.messages.answer_wrong")
         )
+        await callback.message.edit_text(
+            text,
+            **self.DEFAULT_SEND_PARAMS,
+            reply_markup=keyboard,
+        )
+
+
+def _single_question_keyboard(item_id: int, q_data: dict, is_favorite: bool):
+    fav_variants = text_service.get("events.exam.buttons.favorite")
+    rows = [[option] for option in q_data["options"]]
+    rows.append([fav_variants])
+    rows.append([text_service.get("events.exam.buttons.to_favorites")])
+
+    fav_row = len(q_data["options"])
+    back_row = fav_row + 1
+
+    button_kwargs_map = {}
+    for i in range(len(q_data["options"])):
+        button_kwargs_map[(i, 0)] = {"callback_data": f"examqanswer_{item_id}_{i}"}
+    button_kwargs_map[(fav_row, 0)] = {"callback_data": f"examqfav_{item_id}"}
+    button_kwargs_map[(back_row, 0)] = {"callback_data": "start_1_1"}
+
+    return inline_kb(
+        rows,
+        f"examquestion_{item_id}",
+        variants_map={(fav_row, 0): int(is_favorite)},
+        button_kwargs_map=button_kwargs_map,
+    )
+
+
+class ExamQuestionEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data.startswith("examquestion_")
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        item_id = int(callback.data.split("_")[1])
+
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            item_service = ItemService(session)
+            items = item_service.get(id=item_id)
+            if not items:
+                await callback.answer(text_service.get("events.exam.messages.question_not_found"))
+                return
+            question_data = _parse_question(items[0])
+            favorite_service = FavoriteService(session)
+            is_favorite = favorite_service.is_favorite(
+                user_id=user_db.id,
+                content_type=ContentType.QUESTION,
+                item_id=item_id,
+            )
+
+        if not question_data:
+            await callback.answer(text_service.get("events.exam.messages.invalid_questions"))
+            return
+
+        rng = random.SystemRandom()
+        shuffled = _shuffle_question(question_data, rng)
+        context_service.set(user.id, f"exam_question_{item_id}", shuffled)
+
+        text = text_service.get("events.exam.question_text", question=shuffled["question"])
+        keyboard = _single_question_keyboard(item_id, shuffled, is_favorite)
+
+        await callback.answer()
+        await callback.message.edit_text(text, **self.DEFAULT_SEND_PARAMS, reply_markup=keyboard)
+
+
+class ExamQuestionAnswerEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data.startswith("examqanswer_")
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        parts = callback.data.split("_")
+        item_id = int(parts[1])
+        answer_index = int(parts[2])
+
+        q_data = context_service.get(user.id, f"exam_question_{item_id}")
+        if not q_data:
+            await callback.answer(text_service.get("events.exam.messages.state_not_found"))
+            return
+
+        is_correct = answer_index == q_data["correct_idx"]
+        correct_answer = q_data["options"][q_data["correct_idx"]]
+
+        result_key = (
+            "events.exam.question_result_correct"
+            if is_correct
+            else "events.exam.question_result_wrong"
+        )
+        text = text_service.get(result_key, question=q_data["question"], answer=correct_answer)
+
+        keyboard = inline_kb(
+            [
+                [text_service.get("events.exam.buttons.retry_question")],
+                [text_service.get("events.exam.buttons.to_favorites")],
+            ],
+            f"examqresult_{item_id}",
+            button_kwargs_map={
+                (0, 0): {"callback_data": f"examquestion_{item_id}"},
+                (1, 0): {"callback_data": "start_1_1"},
+            },
+        )
+
+        await callback.answer(
+            text_service.get("events.exam.messages.answer_correct")
+            if is_correct
+            else text_service.get("events.exam.messages.answer_wrong")
+        )
+        await callback.message.edit_text(text, **self.DEFAULT_SEND_PARAMS, reply_markup=keyboard)
+
+
+class ExamQuestionFavoriteEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data.startswith("examqfav_")
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        item_id = int(callback.data.split("_")[1])
+
+        q_data = context_service.get(user.id, f"exam_question_{item_id}")
+
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            favorite_service = FavoriteService(session)
+            is_favorite = favorite_service.toggle(
+                user_id=user_db.id,
+                content_type=ContentType.QUESTION,
+                item_id=item_id,
+            )
+
+        if not q_data:
+            await callback.answer()
+            return
+
+        keyboard = _single_question_keyboard(item_id, q_data, is_favorite)
+        await callback.answer()
+        await callback.message.edit_reply_markup(reply_markup=keyboard)
+
+
+class ExamFavoriteEvent(BaseHandler):
+
+    def get_filter(self):
+        return F.data.startswith("examfavorite_")
+
+    async def handle(self, callback: CallbackQuery):
+        user = callback.from_user
+        parts = callback.data.split("_")
+        theme_id = int(parts[1])
+        difficulty = int(parts[2])
+        q_idx = int(parts[3])
+        question_id = int(parts[4])
+
+        exam_state = context_service.get(user.id, "exam_state")
+        if not exam_state or exam_state.get("current_index") != q_idx:
+            await callback.answer()
+            return
+
+        with db.session() as session:
+            user_service = UserService(session)
+            user_db = user_service.get(tg_id=user.id)[0]
+            favorite_service = FavoriteService(session)
+            is_favorite = favorite_service.toggle(
+                user_id=user_db.id,
+                content_type=ContentType.QUESTION,
+                item_id=question_id,
+            )
+
+        questions = exam_state["questions"]
+        q_data = questions[q_idx]
+
+        text = text_service.get(
+            "events.exam_pagination.text",
+            question_number=q_idx + 1,
+            total_questions=len(questions),
+            difficulty=difficulty,
+            score=exam_state["score"],
+            question=q_data["question"],
+        )
+        keyboard = ExamPaginationEvent._question_keyboard(
+            self, theme_id, difficulty, q_idx, q_data, is_favorite=is_favorite,
+        )
+
+        await callback.answer()
         await callback.message.edit_text(
             text,
             **self.DEFAULT_SEND_PARAMS,
