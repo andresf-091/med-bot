@@ -58,8 +58,8 @@ class SlidesListEvent(BaseHandler):
         buttons = text_service.get("events.slides_list.buttons", copy_obj=True)
         slides_list = ""
         for i, slide_title in enumerate(slide_titles, 1):
-            buttons.append([slide_title.replace("\\", "")])
-            slides_list += f"{i}\\. {slide_title}\n"
+            buttons.append([slide_title])
+            slides_list += f"{i}. {slide_title}\n"
         keyboard = inline_kb(buttons, f"slideslist_{theme_id}")
         text = text_service.get(
             "events.slides_list.text", theme=theme_name, slides_list=slides_list

@@ -38,4 +38,4 @@ def format_date(date):
     if date is None:
         return "Нет"
     formatted = date.strftime("%d.%m.%Y %H:%M")
-    return formatted.replace("-", "\\-").replace(".", "\\.")
+    return formatted

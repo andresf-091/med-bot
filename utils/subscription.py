@@ -35,7 +35,7 @@ def get_profile_subscription_content(session, user_db):
     if (subscription.type == UserSubscription.FREE) and not senders:
         subscription_variant = 1
         trial_text = (
-            "*🎁 Пробный период:*\n\n*3 дня бесплатно* для новых пользователей\\!\n\n"
+            "*🎁 Пробный период:*\n\n*3 дня бесплатно* для новых пользователей!\n\n"
         )
     elif subscription.type in [UserSubscription.PREMIUM, UserSubscription.TRIAL]:
         subscription_variant = 2

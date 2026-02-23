@@ -131,7 +131,7 @@ class SupportReplyToMessageEvent(BaseHandler):
         match = USER_ID_PATTERN.search(reply_to.text)
         if not match:
             await message.reply(
-                "Не удалось определить пользователя в сообщении\\.",
+                "Не удалось определить пользователя в сообщении.",
                 **self.DEFAULT_SEND_PARAMS,
             )
             return
